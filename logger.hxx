@@ -57,7 +57,7 @@ public:
   }
 
   void write (Level lvl, std::function<void(std::ostream & out)> f) {
-    if (lvl <= 100*level_) {
+    if (lvl <= level_) {
       f ((*out_) << dynLevelName<Level(0)>(lvl) << ": ");
     }
   }
