@@ -1,10 +1,13 @@
 cmake_minimum_required (VERSION 2.6)
 project (script2svg)
-add_executable (script2svg main.cxx)
+add_executable (script2svg
+  main.cxx
+  terminal.cxx
+  tsm.cxx)
 
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
-string (REPLACE ":" ";" LD_RUN_PATH $ENV{LD_RUN_PATH})
+string (REPLACE ":" ";" LD_RUN_PATH "$ENV{LD_RUN_PATH}")
 foreach (path IN LISTS LD_RUN_PATH)
   set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${path}")
 endforeach (path)
