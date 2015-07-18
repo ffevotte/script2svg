@@ -1,6 +1,7 @@
 #include "terminal.hxx"
 #include <fstream>
 #include <iomanip>
+#include <memory>
 
 Cell::State::State ()
   : ch (' ')
