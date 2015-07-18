@@ -109,11 +109,23 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
   double lastUpdate = 0;
   double shouldUpdate = -1;
 
+  { // Discard the first delay
+    //
+    // I don't understand why there is a shift of one line for the "delay"
+    // column...
+    double discard;
+    timing >> discard;
+  }
+
   while (true) {
-    double delay;
     int nb;
-    timing >> delay >> nb;
+    timing >> nb;
     if (timing.good()) {
+      // The delay is taken to be 0 if it can not be read (happens for the last
+      // line of the timing file, again because of this unexplained shift)
+      double delay = 0;
+      timing >> delay;
+
       if (shouldUpdate < 0
           and time_ > lastUpdate + 0.01) {
         shouldUpdate = time_;
