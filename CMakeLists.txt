@@ -1,5 +1,17 @@
 cmake_minimum_required (VERSION 2.6)
 project (script2svg)
+
+# Version
+set (SCRIPT2SVG_VERSION_MAJOR 0)
+set (SCRIPT2SVG_VERSION_MINOR 1)
+
+configure_file (
+  "${PROJECT_SOURCE_DIR}/config.h.in"
+  "${PROJECT_BINARY_DIR}/config.h"
+  )
+
+include_directories("${PROJECT_BINARY_DIR}")
+
 add_executable (script2svg
   main.cxx
   terminal.cxx
@@ -11,6 +23,8 @@ string (REPLACE ":" ";" LD_RUN_PATH "$ENV{LD_RUN_PATH}")
 foreach (path IN LISTS LD_RUN_PATH)
   set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-rpath,${path}")
 endforeach (path)
+
+
 
 
 # tsm

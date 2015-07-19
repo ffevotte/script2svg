@@ -14,24 +14,24 @@ enum Level {
   LEVEL_MAX
 };
 
-template<Level L> constexpr const char * levelName  () { return "default"; }
-template<> constexpr const char* levelName<ERROR>   () { return "error"; }
-template<> constexpr const char* levelName<WARNING> () { return "warning"; }
-template<> constexpr const char* levelName<NOTICE>  () { return "notice"; }
-template<> constexpr const char* levelName<INFO>    () { return "info"; }
-template<> constexpr const char* levelName<DEBUG>   () { return "debug"; }
+template<Level L> constexpr const char * staLevelName  () { return "default"; }
+template<> constexpr const char* staLevelName<ERROR>   () { return "error"; }
+template<> constexpr const char* staLevelName<WARNING> () { return "warning"; }
+template<> constexpr const char* staLevelName<NOTICE>  () { return "notice"; }
+template<> constexpr const char* staLevelName<INFO>    () { return "info"; }
+template<> constexpr const char* staLevelName<DEBUG>   () { return "debug"; }
 
 template<Level CUR>
 inline const char * dynLevelName (Level lvl) {
   if (lvl == CUR) {
-    return levelName<CUR>();
+    return staLevelName<CUR>();
   }
   return dynLevelName<Level(CUR+1)> (lvl);
 }
 
 template<>
 inline const char * dynLevelName<LEVEL_MAX> (Level lvl) {
-  return levelName<LEVEL_MAX>();
+  return staLevelName<LEVEL_MAX>();
 }
 
 class Logger {
@@ -47,6 +47,14 @@ public:
 
   void level (Level l) {
     level_ = l;
+  }
+
+  Level level () const {
+    return level_;
+  }
+
+  const char * levelName () const {
+    return dynLevelName<Level(0)>(level_);
   }
 
   template <typename T>
@@ -72,7 +80,7 @@ public:
   template <Level LVL>
   void write (std::function<void(std::ostream & out)> f) {
     if (LVL <= level_) {
-      f ((*out_) << levelName<LVL>() << ": ");
+      f ((*out_) << staLevelName<LVL>() << ": ");
     }
   }
 
