@@ -54,20 +54,17 @@ Template header ()
      " <text>\n"
      "  <set id='start' attributeName='visibility' attributeType='CSS' to='visible'"
      "   begin='0; progress.end+1' dur='0'/>\n"
-     " </text>\n"
-     " <!-- Terminal -->\n");
-}
-
-Template cell ()
-{
-  return Template
-    (" <text x='$X' y='$Y' visibility='hidden'>$CHAR\n"
-     "  <set attributeName='visibility' attributeType='CSS' to='visible'"
-     "   begin='start.begin+$BEGIN' dur='$DUR'/>\n"
      " </text>\n");
 }
 
 Template footer ()
+{
+  return Template
+    ("</svg>\n");
+}
+
+
+Template progress ()
 {
   return Template
     (" <!-- Progress bar -->\n"
@@ -79,9 +76,94 @@ Template footer ()
      "  <animate id='progress' attributeName='width' attributeType='XML'"
      "   from='0' to='$DX' fill='freeze'"
      "   begin='start.begin' dur='$TIME' />\n"
-     " </rect>\n"
-     "</svg>\n");
+     " </rect>\n");
 }
+
+
+Template cursorHead ()
+{
+  return Template
+    (" <!-- Cursor -->\n"
+     " <rect width='$DX' height='$DY'"
+     "  style='stroke:#000000; fill:none;'>\n");
+}
+
+Template cursorFoot ()
+{
+  return Template
+    (" </rect>\n");
+}
+
+Template cursorPos ()
+{
+  return Template
+    ("  <set attributeName='x' attributeType='XML' to='$X'"
+     "   begin='start.begin+$BEGIN' dur='$DUR'/>\n"
+     "  <set attributeName='y' attributeType='XML' to='$Y'"
+     "   begin='start.begin+$BEGIN' dur='$DUR'/>\n");
+}
+
+
+Template termHead ()
+{
+  return Template
+    (" <!-- Cell matrix -->\n"
+     " <text dominant-baseline='text-before-edge'>\n");
+}
+
+Template termFoot ()
+{
+  return Template
+    (" </text>\n");
+}
+
+
+Template cell ()
+{
+  return Template
+    ("  <tspan x='$X' y='$Y' visibility='hidden'>$CHAR\n"
+     "   <set attributeName='visibility' attributeType='CSS' to='visible'"
+     "    begin='start.begin+$BEGIN' dur='$DUR'/>\n"
+     "  </tspan>\n");
+}
+
+}
+
+
+void Cursor::update (const Position & pos)
+{
+  TimedPosition tpos {pos, term_->time(), -1};
+
+  if (tpos_.empty()) {
+    tpos_.push_back (tpos);
+    return;
+  }
+
+  if (tpos_.back().pos != pos) {
+    tpos_.back().end = tpos.begin;
+    tpos_.push_back (tpos);
+  }
+}
+
+void Cursor::draw () const
+{
+  std::ostream & out = term_->out();
+  out << SVG::cursorHead()
+    ("$DX", term_->vm<int>("dx"))
+    ("$DY", term_->vm<int>("dy"))
+    .str();
+
+  for (auto tpos: tpos_) {
+    const double end = tpos.end > 0 ? tpos.end : term_->time();
+    out << SVG::cursorPos()
+      ("$X",     20 + term_->vm<int>("dx") * tpos.pos.x)
+      ("$Y",     20 + term_->vm<int>("dy") * tpos.pos.y)
+      ("$BEGIN", tpos.begin)
+      ("$DUR",   end - tpos.begin)
+      .str();
+  }
+
+  out << SVG::cursorFoot().str();
 }
 
 Cell::State::State ()
@@ -98,45 +180,64 @@ void Cell::term (const Terminal * term)
   term_ = term;
 }
 
-void Cell::draw (int x, int y, double end)
+void Cell::update (const State & state)
 {
+  bool upd = false;
+
+  if (tstate_.empty()) {
+    // No previous state
+    upd = true;
+  } else if (tstate_.back().end >= 0) {
+    // Old previous state
+    upd = true;
+  } else if (tstate_.back().state != state) {
+    // Change in state
+    upd = true;
+    tstate_.back().end = term_->time();
+  }
+
+  if (upd and state.ch != ' ') {
+    TimedState tstate {state, term_->time(), -1};
+    tstate_.push_back (tstate);
+  }
+}
+
+void Cell::draw (uint col, uint row) const
+{
+  if (tstate_.empty())
+    return;
+
   std::ostream & out = term_->out();
-  if (state_.ch != ' ') {
-    std::string ch {state_.ch};
+
+  for (auto tstate: tstate_) {
+    std::string ch {tstate.state.ch};
 
     // Convert special chars to XML entities
-    switch (state_.ch) {
+    switch (tstate.state.ch) {
     case '<': ch = "&lt;"; break;
     case '>': ch = "&gt;"; break;
     }
 
+    const double end = tstate.end>0 ? tstate.end : term_->time();
+
     out << SVG::cell()
-      ("$X",     20 + x * term_->vm<int>("dx"))
-      ("$Y",     20 + y * term_->vm<int>("dy"))
+      ("$X", 20 + col * term_->vm<int>("dx"))
+      ("$Y", 20 + row * term_->vm<int>("dy"))
       ("$CHAR",  ch)
-      ("$BEGIN", begin_)
-      ("$DUR",   end-begin_)
+      ("$BEGIN", tstate.begin)
+      ("$DUR",   end-tstate.begin)
       .str();
-  }
-}
-
-
-void Cell::update (int x, int y, const State & state)
-{
-  if (state != state_) {
-    draw(x, y, term_->time());
-    begin_ = term_->time();
-    state_ = state;
   }
 }
 
 Terminal::Terminal (const po::variables_map & vm,
                     Log::Logger & log)
-  : vm_     (vm),
-    log_    (log),
-    screen_ (log),
-    vte_    (log, screen_()),
-    time_   (0)
+  : vm_         (vm),
+    log_        (log),
+    screen_     (log),
+    vte_        (log, screen_()),
+    time_       (0),
+    lastUpdate_ (0)
 {
   // Handle output
   if (vm_.count ("output")) {
@@ -149,7 +250,7 @@ Terminal::Terminal (const po::variables_map & vm,
     out_.reset (&std::cout, /*owner*/false);
   }
 
-  // Terminal size
+  // Initialize cell matrix
   {
     int nCols = this->vm<int>("columns");
     if (nCols == 0) {
@@ -193,6 +294,9 @@ Terminal::Terminal (const po::variables_map & vm,
     }
   }
 
+  // Initialize cursor
+  cursor_.term (this);
+
   out() << SVG::header()
     ("$FONT", this->vm<std::string>("font"))
     ("$SIZE", this->vm<std::string>("size"))
@@ -201,20 +305,31 @@ Terminal::Terminal (const po::variables_map & vm,
 
 Terminal::~Terminal ()
 {
-  for (uint col = 0 ; col<cell_.size() ; col++) {
-    for (uint row = 0 ; row<cell_[col].size() ; ++row) {
-      cell_[col][row].draw(col, row, time_+1);
-    }
-  }
-
-  out() << SVG::footer()
+  // Progress bar
+  out() << SVG::progress()
     ("$X0",    20)
-    ("$Y0",    vm<int>("dy") * vm<int>("rows") + 20)
+    ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + 20)
     ("$DX",    vm<int>("dx") * vm<int>("columns"))
     ("$DY",    vm<std::string>("progress.height"))
     ("$TIME",  time_)
     ("$COLOR", vm<std::string>("progress.color"))
     .str();
+  time_ += 1;
+
+  // Cursor positions
+  cursor_.draw();
+
+  // Cells matrix
+  out() << SVG::termHead().str();
+  for (uint row = 0 ; row<cell_[0].size() ; ++row) {
+    for (uint col = 0 ; col<cell_.size() ; col++) {
+      cell_[col][row].draw(col, row);
+    }
+  }
+  out() << SVG::termFoot().str();
+
+  // SVG footer
+  out() << SVG::footer().str();
 }
 
 void Terminal::play (const std::string & scriptPath, const std::string timingPath)
@@ -243,7 +358,6 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
   std::unique_ptr<char[]> bufGuard {new char [bufferSize]};
   char * buffer {bufGuard.get()};
 
-  double lastUpdate = 0;
   double shouldUpdate = -1;
 
   { // Discard the first delay
@@ -264,14 +378,13 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
       timing >> delay;
 
       if (shouldUpdate < 0
-          and time_ > lastUpdate + 0.01) {
+          and time_ > lastUpdate_ + 0.01) {
         shouldUpdate = time_;
       }
 
       if (shouldUpdate > 0
           and time_ + delay > shouldUpdate + 0.01) {
         update();
-        lastUpdate = time_;
         shouldUpdate = -1;
       }
 
@@ -328,13 +441,16 @@ void Terminal::update ()
           << time_ << std::endl;
     });
   tsm_screen_draw (screen_(), update, this);
+  cursor_.update (Cursor::Position {tsm_screen_get_cursor_x (screen_()),
+        tsm_screen_get_cursor_y (screen_())});
+  lastUpdate_ = time_;
 }
 
 void Terminal::update (uint col, uint row, const Cell::State & state)
 {
   if (col >= cell_.size())      return;
   if (row >= cell_[col].size()) return;
-  cell_[col][row].update (col, row, state);
+  cell_[col][row].update (state);
 }
 
 

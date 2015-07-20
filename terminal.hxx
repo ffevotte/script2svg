@@ -16,13 +16,45 @@ public:
   };
 
   void term (const Terminal * term);
-  void update (int x, int y, const State & state);
-  void draw (int x, int y, double end);
+  void update (const State & state);
+  void draw (uint col, uint row) const;
 
 private:
+  struct TimedState {
+    State state;
+    double begin;
+    double end;
+  };
+
   const Terminal * term_;
-  double begin_;
-  State  state_;
+  std::vector<TimedState> tstate_;
+};
+
+
+class Cursor {
+public:
+  struct Position {
+    bool operator!= (const Position & other) const {
+      return (x != other.x or y!=other.y);
+    }
+
+    unsigned int x;
+    unsigned int y;
+  };
+
+  void term (const Terminal * term) {term_ = term;}
+  void update (const Position & pos);
+  void draw () const;
+
+private:
+  struct TimedPosition {
+    Position pos;
+    double   begin;
+    double   end;
+  };
+
+  const Terminal * term_;
+  std::vector<TimedPosition> tpos_;
 };
 
 // Possibly Owning ptr
@@ -95,5 +127,8 @@ private:
   TSM::Screen         screen_;
   TSM::VTE            vte_;
   double              time_;
+  double              lastUpdate_;
+  Cursor              cursor_;
+public:
   std::vector<std::vector<Cell>> cell_;
 };
