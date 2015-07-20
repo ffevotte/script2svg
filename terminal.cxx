@@ -121,10 +121,68 @@ Template termFoot ()
 Template cell ()
 {
   return Template
-    ("  <tspan x='$X' y='$Y' visibility='hidden'>$CHAR\n"
+    ("  <tspan x='$X' y='$Y' visibility='hidden' style='fill:#$FG'>$CHAR\n"
      "   <set attributeName='visibility' attributeType='CSS' to='visible'"
      "    begin='start.begin+$BEGIN' dur='$DUR'/>\n"
      "  </tspan>\n");
+}
+
+// Imported from "tsm_vte.c"
+enum vte_color {
+	COLOR_BLACK,
+	COLOR_RED,
+	COLOR_GREEN,
+	COLOR_YELLOW,
+	COLOR_BLUE,
+	COLOR_MAGENTA,
+	COLOR_CYAN,
+	COLOR_LIGHT_GREY,
+	COLOR_DARK_GREY,
+	COLOR_LIGHT_RED,
+	COLOR_LIGHT_GREEN,
+	COLOR_LIGHT_YELLOW,
+	COLOR_LIGHT_BLUE,
+	COLOR_LIGHT_MAGENTA,
+	COLOR_LIGHT_CYAN,
+	COLOR_WHITE,
+	COLOR_FOREGROUND,
+	COLOR_BACKGROUND,
+	COLOR_NUM
+};
+
+const std::string & color (int code, const Terminal * term) {
+  using std::string;
+
+  switch (code) {
+  case COLOR_BLACK:
+  case COLOR_DARK_GREY:
+    return term->vm<string>("color.black");
+  case COLOR_RED:
+  case COLOR_LIGHT_RED:
+    return term->vm<string>("color.red");
+  case COLOR_GREEN:
+  case COLOR_LIGHT_GREEN:
+    return term->vm<string>("color.green");
+  case COLOR_YELLOW:
+  case COLOR_LIGHT_YELLOW:
+    return term->vm<string>("color.yellow");
+  case COLOR_BLUE:
+  case COLOR_LIGHT_BLUE:
+    return term->vm<string>("color.blue");
+  case COLOR_MAGENTA:
+  case COLOR_LIGHT_MAGENTA:
+    return term->vm<string>("color.magenta");
+  case COLOR_CYAN:
+  case COLOR_LIGHT_CYAN:
+    return term->vm<string>("color.cyan");
+  case COLOR_LIGHT_GREY:
+  case COLOR_WHITE:
+    return term->vm<string>("color.white");
+  case COLOR_FOREGROUND:
+    return term->vm<string>("color.fg");
+  case COLOR_BACKGROUND:
+    return term->vm<string>("color.bg");
+  }
 }
 
 }
@@ -172,7 +230,8 @@ Cell::State::State ()
 
 bool Cell::State::operator!= (const State & other) const
 {
-  return ch != other.ch;
+  return ch != other.ch
+    or   fg != other.fg;
 }
 
 void Cell::term (const Terminal * term)
@@ -214,16 +273,18 @@ void Cell::draw (uint col, uint row) const
 
     // Convert special chars to XML entities
     switch (tstate.state.ch) {
-    case '<': ch = "&lt;"; break;
-    case '>': ch = "&gt;"; break;
+    case '<': ch = "&lt;";  break;
+    case '>': ch = "&gt;";  break;
+    case '&': ch = "&amp;"; break;
     }
 
     const double end = tstate.end>0 ? tstate.end : term_->time();
 
     out << SVG::cell()
-      ("$X", 20 + col * term_->vm<int>("dx"))
-      ("$Y", 20 + row * term_->vm<int>("dy"))
+      ("$X",     20 + col * term_->vm<int>("dx"))
+      ("$Y",     20 + row * term_->vm<int>("dy"))
       ("$CHAR",  ch)
+      ("$FG",    SVG::color(tstate.state.fg, term_))
       ("$BEGIN", tstate.begin)
       ("$DUR",   end-tstate.begin)
       .str();
@@ -463,6 +524,9 @@ int Terminal::update (struct tsm_screen *screen, uint32_t id,
   Terminal * term = (Terminal*)data;
 
   Cell::State state;
+
+  state.fg = attr->fccode;
+
   if (len) {
     state.ch = static_cast<char>(*ch);
   }

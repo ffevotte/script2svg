@@ -121,36 +121,56 @@ int main (int argc, char **argv)
 // ** Colors
     po::options_description optionsColors {"Colors"};
     optionsColors.add_options()
-      ("style.red",
+      ("color.fg",
+       po::value<std::string>()
+       ->default_value ("000000")
+       ->value_name ("     HEX_CODE"),
+       "foreground color")
+      ("color.bg",
+       po::value<std::string>()
+       ->default_value ("ffffff")
+       ->value_name ("     HEX_CODE"),
+       "background color")
+      ("color.black",
+       po::value<std::string>()
+       ->default_value ("000000")
+       ->value_name ("  HEX_CODE"),
+       "black / dark gray")
+      ("color.red",
        po::value<std::string>()
        ->default_value ("aa0000")
        ->value_name ("    HEX_CODE"),
-       "red color")
-      ("style.green",
+       "red")
+      ("color.green",
        po::value<std::string>()
        ->default_value ("00aa00")
        ->value_name ("  HEX_CODE"),
-       "green color")
-      ("style.yellow",
+       "green")
+      ("color.yellow",
        po::value<std::string>()
        ->default_value ("aa5500")
        ->value_name (" HEX_CODE"),
-       "green color")
-      ("style.blue",
+       "green")
+      ("color.blue",
        po::value<std::string>()
        ->default_value ("0000aa")
        ->value_name ("   HEX_CODE"),
-       "blue color")
-      ("style.magenta",
+       "blue")
+      ("color.magenta",
        po::value<std::string>()
        ->default_value ("aa00aa")
        ->value_name ("HEX_CODE"),
-       "magenta color")
-      ("style.cyan",
+       "magenta")
+      ("color.cyan",
        po::value<std::string>()
        ->default_value ("00aaaa")
        ->value_name ("   HEX_CODE"),
-       "cyan color");
+       "cyan")
+      ("color.white",
+       po::value<std::string>()
+       ->default_value ("ffffff")
+       ->value_name ("  HEX_CODE"),
+       "white / light gray");
     optionsAll.add (optionsColors);
     optionsDoc.add (optionsColors);
 

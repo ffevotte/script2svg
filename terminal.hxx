@@ -13,6 +13,7 @@ public:
     State ();
     bool operator!= (const State & other) const;
     char ch;
+    int  fg;
   };
 
   void term (const Terminal * term);
