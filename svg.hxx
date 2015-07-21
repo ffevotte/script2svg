@@ -42,7 +42,7 @@ Template header ()
      " <!-- Cycling -->\n"
      " <text>\n"
      "  <set id='start' attributeName='visibility' attributeType='XML' to='visible'"
-     "   begin='0; progress.end+1' dur='0'/>\n"
+     "   begin='0; progress.end' dur='0'/>\n"
      " </text>\n");
 }
 

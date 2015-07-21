@@ -180,6 +180,22 @@ int main (int argc, char **argv)
     optionsAll.add (optionsColors);
     optionsDoc.add (optionsColors);
 
+// ** Margins
+    po::options_description optionsMargins {"Margins"};
+    optionsMargins.add_options()
+      ("margin.left",
+       po::value<int>()
+       ->value_name ("PX")
+       ->default_value (1),
+       "left margin")
+      ("margin.top",
+       po::value<int>()
+       ->value_name (" PX")
+       ->default_value (1),
+       "top margin");
+    optionsAll.add (optionsMargins);
+    optionsDoc.add (optionsMargins);
+
 // ** Advertisement
     po::options_description optionsAd {
         String("Advertisement:\n"

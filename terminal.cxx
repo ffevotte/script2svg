@@ -137,8 +137,8 @@ void Cell::drawText (uint col, uint row) const
     const double end = ttext.end>0 ? ttext.end : term_->time();
 
     out << SVG::textCell()
-      ("$X",     20 + col * term_->vm<int>("dx"))
-      ("$Y",     20 + row * term_->vm<int>("dy"))
+      ("$X",     term_->vm<int>("margin.left") + col * term_->vm<int>("dx"))
+      ("$Y",     term_->vm<int>("margin.top")  + row * term_->vm<int>("dy"))
       ("$CHAR",  ch)
       ("$COLOR", ttext.text.fg != TSM::COLOR_FOREGROUND ?
        (" fill='#" + TSM::color(ttext.text.fg, term_) + "'") : "")
@@ -183,8 +183,8 @@ void Cell::drawBg (uint col, uint row) const
     const double end = tbg.end>0 ? tbg.end : term_->time();
 
     out << SVG::bgCell()
-      ("$X",     20 + col * term_->vm<int>("dx"))
-      ("$Y",     20 + row * term_->vm<int>("dy"))
+      ("$X",     term_->vm<int>("margin.left") + col * term_->vm<int>("dx"))
+      ("$Y",     term_->vm<int>("margin.top")  + row * term_->vm<int>("dy"))
       ("$DX",    term_->vm<int>("dx"))
       ("$DY",    term_->vm<int>("dy"))
       ("$COLOR", TSM::color(tbg.bg, term_))
@@ -266,8 +266,8 @@ Terminal::Terminal (const po::variables_map & vm,
 
   if (this->vm<string>("ad.text") != "") {
     out() << SVG::advertisement()
-      ("$X",    20 + this->vm<int>("dx") * (0.5+this->vm<int>("columns")))
-      ("$Y",    (20
+      ("$X",    this->vm<int>("margin.left") + this->vm<int>("dx") * (0.5+this->vm<int>("columns")))
+      ("$Y",    (this->vm<int>("margin.top")
                  + this->vm<int>("dy") * (0.5+this->vm<int>("rows"))
                  + this->vm<int>("progress.height")))
       ("$SIZE", int (this->vm<int>("size") * 0.75))
@@ -281,8 +281,8 @@ Terminal::~Terminal ()
 {
   // Progress bar
   out() << SVG::progress()
-    ("$X0",    20)
-    ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + 20)
+    ("$X0",    vm<int>("margin.left"))
+    ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + vm<int>("margin.top"))
     ("$DX",    vm<int>("dx") * vm<int>("columns"))
     ("$DY",    vm<int>("progress.height"))
     ("$TIME",  time_)
@@ -292,8 +292,8 @@ Terminal::~Terminal ()
 
   // Background
   out() << SVG::bgHead()
-    ("$X0",     20-1)
-    ("$Y0",     20-1)
+    ("$X0",     vm<int>("margin.left") - 1)
+    ("$Y0",     vm<int>("margin.top")  - 1)
     ("$WIDTH",  vm<int>("dx") * vm<int>("columns") + 2)
     ("$HEIGHT", vm<int>("dy") * vm<int>("rows") + 2)
     ("$BG",     vm<string>("color.bg"))
