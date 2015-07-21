@@ -9,54 +9,40 @@ class Terminal;
 
 class Cell {
 public:
-  struct State {
-    State ();
-    bool operator!= (const State & other) const;
+  struct Text {
+    Text ();
+    bool operator!= (const Text & other) const;
     char ch;
     int  fg;
+    int  bold;
+    int  underline;
   };
 
   void term (const Terminal * term);
-  void update (const State & state);
-  void draw (uint col, uint row) const;
+  void updateText (const Text & state);
+  void drawText (uint col, uint row) const;
+
+  void updateBg (int bg);
+  void drawBg (uint col, uint row) const;
 
 private:
-  struct TimedState {
-    State state;
+  struct TimedText {
+    Text text;
+    double begin;
+    double end;
+  };
+
+  struct TimedBg {
+    int bg;
     double begin;
     double end;
   };
 
   const Terminal * term_;
-  std::vector<TimedState> tstate_;
+  std::vector<TimedText> ttext_;
+  std::vector<TimedBg> tbg_;
 };
 
-
-class Cursor {
-public:
-  struct Position {
-    bool operator!= (const Position & other) const {
-      return (x != other.x or y!=other.y);
-    }
-
-    unsigned int x;
-    unsigned int y;
-  };
-
-  void term (const Terminal * term) {term_ = term;}
-  void update (const Position & pos);
-  void draw () const;
-
-private:
-  struct TimedPosition {
-    Position pos;
-    double   begin;
-    double   end;
-  };
-
-  const Terminal * term_;
-  std::vector<TimedPosition> tpos_;
-};
 
 // Possibly Owning ptr
 template <typename T>
@@ -113,7 +99,7 @@ public:
 
 private:
   void update ();
-  void update (uint col, uint row, const Cell::State & state);
+  void update (uint col, uint row, const Cell::Text & state, int bg);
 
   // Static wrapper for C-style callbacks
   static int update (struct tsm_screen *screen, uint32_t id,
@@ -129,7 +115,6 @@ private:
   TSM::VTE            vte_;
   double              time_;
   double              lastUpdate_;
-  Cursor              cursor_;
 public:
   std::vector<std::vector<Cell>> cell_;
 };

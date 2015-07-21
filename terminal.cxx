@@ -1,3 +1,4 @@
+#include "svg.hxx"
 #include "terminal.hxx"
 #include <fstream>
 #include <iomanip>
@@ -12,146 +13,35 @@ using Log::INFO;
 using Log::DEBUG;
 
 namespace po = boost::program_options;
+using std::string;
 
-namespace SVG
-{
-class Template
-{
-public:
-  Template (std::string str)
-    : str_(str)
-  {}
-
-  template <typename T>
-  Template & operator() (std::string placeholder, T value)
-  {
-    std::ostringstream oss;
-    oss << value;
-
-    size_t pos = 0;
-    while ((pos = str_.find (placeholder, pos)) != std::string::npos) {
-      str_.replace (pos, placeholder.size(), oss.str());
-    }
-    return *this;
-  }
-
-  const std::string & str () const
-  {
-    return str_;
-  }
-
-private:
-  std::string str_;
-};
-
-Template header ()
-{
-  return Template
-    ("<svg xmlns='http://www.w3.org/2000/svg'"
-     " xmlns:xlink='http://www.w3.org/1999/xlink'\n"
-     " font-family='$FONT' font-size='$SIZE'>\n"
-     " <!-- Cycling -->\n"
-     " <text>\n"
-     "  <set id='start' attributeName='visibility' attributeType='CSS' to='visible'"
-     "   begin='0; progress.end+1' dur='0'/>\n"
-     " </text>\n");
-}
-
-Template footer ()
-{
-  return Template
-    ("</svg>\n");
-}
-
-
-Template progress ()
-{
-  return Template
-    (" <!-- Progress bar -->\n"
-     " <!--   border -->\n"
-     " <rect x='$X0' y='$Y0' width='$DX' height='$DY'"
-     "  style='stroke:#$COLOR; fill:none' />\n"
-     " <!--   filling -->\n"
-     " <rect x='$X0' y='$Y0' height='$DY' style='fill:#$COLOR;'>\n"
-     "  <animate id='progress' attributeName='width' attributeType='XML'"
-     "   from='0' to='$DX' fill='freeze'"
-     "   begin='start.begin' dur='$TIME' />\n"
-     " </rect>\n");
-}
-
-
-Template cursorHead ()
-{
-  return Template
-    (" <!-- Cursor -->\n"
-     " <rect width='$DX' height='$DY'"
-     "  style='stroke:#000000; fill:none;'>\n");
-}
-
-Template cursorFoot ()
-{
-  return Template
-    (" </rect>\n");
-}
-
-Template cursorPos ()
-{
-  return Template
-    ("  <set attributeName='x' attributeType='XML' to='$X'"
-     "   begin='start.begin+$BEGIN' dur='$DUR'/>\n"
-     "  <set attributeName='y' attributeType='XML' to='$Y'"
-     "   begin='start.begin+$BEGIN' dur='$DUR'/>\n");
-}
-
-
-Template termHead ()
-{
-  return Template
-    (" <!-- Cell matrix -->\n"
-     " <text dominant-baseline='text-before-edge'>\n");
-}
-
-Template termFoot ()
-{
-  return Template
-    (" </text>\n");
-}
-
-
-Template cell ()
-{
-  return Template
-    ("  <tspan x='$X' y='$Y' visibility='hidden' style='fill:#$FG'>$CHAR\n"
-     "   <set attributeName='visibility' attributeType='CSS' to='visible'"
-     "    begin='start.begin+$BEGIN' dur='$DUR'/>\n"
-     "  </tspan>\n");
-}
+namespace TSM {
 
 // Imported from "tsm_vte.c"
 enum vte_color {
-	COLOR_BLACK,
-	COLOR_RED,
-	COLOR_GREEN,
-	COLOR_YELLOW,
-	COLOR_BLUE,
-	COLOR_MAGENTA,
-	COLOR_CYAN,
-	COLOR_LIGHT_GREY,
-	COLOR_DARK_GREY,
-	COLOR_LIGHT_RED,
-	COLOR_LIGHT_GREEN,
-	COLOR_LIGHT_YELLOW,
-	COLOR_LIGHT_BLUE,
-	COLOR_LIGHT_MAGENTA,
-	COLOR_LIGHT_CYAN,
-	COLOR_WHITE,
-	COLOR_FOREGROUND,
-	COLOR_BACKGROUND,
-	COLOR_NUM
+  COLOR_BLACK,
+  COLOR_RED,
+  COLOR_GREEN,
+  COLOR_YELLOW,
+  COLOR_BLUE,
+  COLOR_MAGENTA,
+  COLOR_CYAN,
+  COLOR_LIGHT_GREY,
+  COLOR_DARK_GREY,
+  COLOR_LIGHT_RED,
+  COLOR_LIGHT_GREEN,
+  COLOR_LIGHT_YELLOW,
+  COLOR_LIGHT_BLUE,
+  COLOR_LIGHT_MAGENTA,
+  COLOR_LIGHT_CYAN,
+  COLOR_WHITE,
+  COLOR_FOREGROUND,
+  COLOR_BACKGROUND,
+  COLOR_NUM
 };
 
-const std::string & color (int code, const Terminal * term) {
-  using std::string;
+const string & color (int code, const Terminal * term) {
+  static const string undefined = "xxxxxx";
 
   switch (code) {
   case COLOR_BLACK:
@@ -183,55 +73,21 @@ const std::string & color (int code, const Terminal * term) {
   case COLOR_BACKGROUND:
     return term->vm<string>("color.bg");
   }
+
+  return undefined;
+}
 }
 
-}
-
-
-void Cursor::update (const Position & pos)
-{
-  TimedPosition tpos {pos, term_->time(), -1};
-
-  if (tpos_.empty()) {
-    tpos_.push_back (tpos);
-    return;
-  }
-
-  if (tpos_.back().pos != pos) {
-    tpos_.back().end = tpos.begin;
-    tpos_.push_back (tpos);
-  }
-}
-
-void Cursor::draw () const
-{
-  std::ostream & out = term_->out();
-  out << SVG::cursorHead()
-    ("$DX", term_->vm<int>("dx"))
-    ("$DY", term_->vm<int>("dy"))
-    .str();
-
-  for (auto tpos: tpos_) {
-    const double end = tpos.end > 0 ? tpos.end : term_->time();
-    out << SVG::cursorPos()
-      ("$X",     20 + term_->vm<int>("dx") * tpos.pos.x)
-      ("$Y",     20 + term_->vm<int>("dy") * tpos.pos.y)
-      ("$BEGIN", tpos.begin)
-      ("$DUR",   end - tpos.begin)
-      .str();
-  }
-
-  out << SVG::cursorFoot().str();
-}
-
-Cell::State::State ()
+Cell::Text::Text ()
   : ch (' ')
 {}
 
-bool Cell::State::operator!= (const State & other) const
+bool Cell::Text::operator!= (const Text & other) const
 {
-  return ch != other.ch
-    or   fg != other.fg;
+  return ch        != other.ch
+    or   fg        != other.fg
+    or   bold      != other.bold
+    or   underline != other.underline;
 }
 
 void Cell::term (const Terminal * term)
@@ -239,57 +95,105 @@ void Cell::term (const Terminal * term)
   term_ = term;
 }
 
-void Cell::update (const State & state)
+void Cell::updateText (const Text & text)
 {
   bool upd = false;
 
-  if (tstate_.empty()) {
-    // No previous state
+  if (ttext_.empty()) {
+    // No previous text
     upd = true;
-  } else if (tstate_.back().end >= 0) {
-    // Old previous state
+  } else if (ttext_.back().end >= 0) {
+    // Old previous text
     upd = true;
-  } else if (tstate_.back().state != state) {
-    // Change in state
+  } else if (ttext_.back().text != text) {
+    // Change in text
     upd = true;
-    tstate_.back().end = term_->time();
+    ttext_.back().end = term_->time();
   }
 
-  if (upd and state.ch != ' ') {
-    TimedState tstate {state, term_->time(), -1};
-    tstate_.push_back (tstate);
+  if (upd and text.ch != ' ') {
+    TimedText ttext {text, term_->time(), -1};
+    ttext_.push_back (ttext);
   }
 }
 
-void Cell::draw (uint col, uint row) const
+void Cell::drawText (uint col, uint row) const
 {
-  if (tstate_.empty())
+  if (ttext_.empty())
     return;
 
   std::ostream & out = term_->out();
 
-  for (auto tstate: tstate_) {
-    std::string ch {tstate.state.ch};
+  for (auto ttext: ttext_) {
+    string ch {ttext.text.ch};
 
     // Convert special chars to XML entities
-    switch (tstate.state.ch) {
+    switch (ttext.text.ch) {
     case '<': ch = "&lt;";  break;
     case '>': ch = "&gt;";  break;
     case '&': ch = "&amp;"; break;
     }
 
-    const double end = tstate.end>0 ? tstate.end : term_->time();
+    const double end = ttext.end>0 ? ttext.end : term_->time();
 
-    out << SVG::cell()
+    out << SVG::textCell()
       ("$X",     20 + col * term_->vm<int>("dx"))
       ("$Y",     20 + row * term_->vm<int>("dy"))
       ("$CHAR",  ch)
-      ("$FG",    SVG::color(tstate.state.fg, term_))
-      ("$BEGIN", tstate.begin)
-      ("$DUR",   end-tstate.begin)
+      ("$COLOR", ttext.text.fg != TSM::COLOR_FOREGROUND ?
+       (" fill='#" + TSM::color(ttext.text.fg, term_) + "'") : "")
+      ("$BOLD",  ttext.text.bold ? " font-weight='bold'" : "")
+      ("$UNDER", ttext.text.underline ? " text-decoration='underline'" : "")
+      ("$BEGIN", ttext.begin)
+      ("$DUR",   end-ttext.begin)
       .str();
   }
 }
+
+void Cell::updateBg (int bg)
+{
+  bool upd = false;
+
+  if (tbg_.empty()) {
+    // No previous bg
+    upd = true;
+  } else if (tbg_.back().end >= 0) {
+    // Old previous bg
+    upd = true;
+  } else if (tbg_.back().bg != bg) {
+    // Change in bg
+    upd = true;
+    tbg_.back().end = term_->time();
+  }
+
+  if (upd and bg != TSM::COLOR_BACKGROUND) {
+    TimedBg tbg {bg, term_->time(), -1};
+    tbg_.push_back (tbg);
+  }
+}
+
+void Cell::drawBg (uint col, uint row) const
+{
+  if (tbg_.empty())
+    return;
+
+  std::ostream & out = term_->out();
+
+  for (auto tbg: tbg_) {
+    const double end = tbg.end>0 ? tbg.end : term_->time();
+
+    out << SVG::bgCell()
+      ("$X",     20 + col * term_->vm<int>("dx"))
+      ("$Y",     20 + row * term_->vm<int>("dy"))
+      ("$DX",    term_->vm<int>("dx"))
+      ("$DY",    term_->vm<int>("dy"))
+      ("$COLOR", TSM::color(tbg.bg, term_))
+      ("$BEGIN", tbg.begin)
+      ("$DUR",   end-tbg.begin)
+      .str();
+  }
+}
+
 
 Terminal::Terminal (const po::variables_map & vm,
                     Log::Logger & log)
@@ -302,7 +206,7 @@ Terminal::Terminal (const po::variables_map & vm,
 {
   // Handle output
   if (vm_.count ("output")) {
-    std::string outputName = this->vm<std::string>("output");
+    string outputName = this->vm<string>("output");
     log_.write<INFO> ([&](auto&&out){
         out << "setting output to file `" << outputName << "'" << std::endl;
       });
@@ -355,12 +259,9 @@ Terminal::Terminal (const po::variables_map & vm,
     }
   }
 
-  // Initialize cursor
-  cursor_.term (this);
-
   out() << SVG::header()
-    ("$FONT", this->vm<std::string>("font"))
-    ("$SIZE", this->vm<std::string>("size"))
+    ("$FONT", this->vm<string>("font"))
+    ("$SIZE", this->vm<string>("size"))
     .str();
 }
 
@@ -371,29 +272,42 @@ Terminal::~Terminal ()
     ("$X0",    20)
     ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + 20)
     ("$DX",    vm<int>("dx") * vm<int>("columns"))
-    ("$DY",    vm<std::string>("progress.height"))
+    ("$DY",    vm<string>("progress.height"))
     ("$TIME",  time_)
-    ("$COLOR", vm<std::string>("progress.color"))
+    ("$COLOR", vm<string>("progress.color"))
     .str();
   time_ += 1;
 
-  // Cursor positions
-  cursor_.draw();
-
-  // Cells matrix
-  out() << SVG::termHead().str();
+  // Background
+  out() << SVG::bgHead()
+    ("$X0",     20-1)
+    ("$Y0",     20-1)
+    ("$WIDTH",  vm<int>("dx") * vm<int>("columns") + 2)
+    ("$HEIGHT", vm<int>("dy") * vm<int>("rows") + 2)
+    ("$BG",     vm<string>("color.bg"))
+    .str();
   for (uint row = 0 ; row<cell_[0].size() ; ++row) {
     for (uint col = 0 ; col<cell_.size() ; col++) {
-      cell_[col][row].draw(col, row);
+      cell_[col][row].drawBg (col, row);
     }
   }
-  out() << SVG::termFoot().str();
+
+  // Text
+  out() << SVG::textHead()
+    ("$FG", vm<string>("color.fg"))
+    .str();
+  for (uint row = 0 ; row<cell_[0].size() ; ++row) {
+    for (uint col = 0 ; col<cell_.size() ; col++) {
+      cell_[col][row].drawText (col, row);
+    }
+  }
+  out() << SVG::textFoot().str();
 
   // SVG footer
   out() << SVG::footer().str();
 }
 
-void Terminal::play (const std::string & scriptPath, const std::string timingPath)
+void Terminal::play (const string & scriptPath, const string timingPath)
 {
   std::ifstream script {scriptPath, std::ifstream::in};
   if (script.fail()) {
@@ -403,7 +317,7 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
   }
 
   { // Discard first line
-    std::string discard;
+    string discard;
     std::getline(script, discard);
   }
 
@@ -455,8 +369,8 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
         const int n = std::min(nb, bufferSize-1);
         script.read(buffer, n); buffer[n] = 0;
         if (script.fail()) {
-          throw std::runtime_error ("premature end of script file;"
-                                    " stopping processing here.");
+          throw std::runtime_error
+            ("premature end of script file; stopping processing here.");
         }
 
         tsm_vte_input (vte_(), buffer, n);
@@ -488,8 +402,8 @@ void Terminal::play (const std::string & scriptPath, const std::string timingPat
       update();
       break;
     } else {
-      throw std::runtime_error ("could not parse timing file;"
-                                " stopping processing here");
+      throw std::runtime_error
+        ("could not parse timing file; stopping processing here");
     }
   }
 }
@@ -502,16 +416,15 @@ void Terminal::update ()
           << time_ << std::endl;
     });
   tsm_screen_draw (screen_(), update, this);
-  cursor_.update (Cursor::Position {tsm_screen_get_cursor_x (screen_()),
-        tsm_screen_get_cursor_y (screen_())});
   lastUpdate_ = time_;
 }
 
-void Terminal::update (uint col, uint row, const Cell::State & state)
+void Terminal::update (uint col, uint row, const Cell::Text & text, int bg)
 {
   if (col >= cell_.size())      return;
   if (row >= cell_[col].size()) return;
-  cell_[col][row].update (state);
+  cell_[col][row].updateText (text);
+  cell_[col][row].updateBg (bg);
 }
 
 
@@ -523,14 +436,23 @@ int Terminal::update (struct tsm_screen *screen, uint32_t id,
 {
   Terminal * term = (Terminal*)data;
 
-  Cell::State state;
+  Cell::Text text;
+  int bg;
 
-  state.fg = attr->fccode;
+  text.fg = attr->fccode;
+  bg = attr->bccode;
+
+  if (attr->inverse) {
+    std::swap (text.fg, bg);
+  }
+
+  text.bold = attr->bold;
+  text.underline = attr->underline;
 
   if (len) {
-    state.ch = static_cast<char>(*ch);
+    text.ch = static_cast<char>(*ch);
   }
-  term->update (posx, posy, state);
+  term->update (posx, posy, text, bg);
 
   return 0;
 }
