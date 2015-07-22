@@ -52,6 +52,17 @@ Template footer ()
     ("</svg>\n");
 }
 
+Template advertisement ()
+{
+  return Template
+    (" <!-- Advertisement -->\n"
+     " <a xlink:href='$URL' xlink:show='new'>\n"
+     "  <text x='$X' y='$Y' transform='rotate(-90, $X, $Y)'"
+     "   dominant-baseline='text-before-edge' font-size='$SIZE'>\n"
+     "   $TEXT\n"
+     "  </text>\n"
+     " </a>\n");
+}
 
 Template progress ()
 {

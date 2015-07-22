@@ -1,3 +1,4 @@
+#include "string.hxx"
 #include "logger.hxx"
 #include "terminal.hxx"
 #include "config.h"
@@ -14,7 +15,9 @@ int main (int argc, char **argv)
 
   try {
 // * Options definition
+    using std::string;
     namespace po = boost::program_options;
+    auto & m_default_line_length {po::options_description::m_default_line_length};
     po::options_description optionsAll;
     po::options_description optionsDoc;
 
@@ -22,11 +25,11 @@ int main (int argc, char **argv)
     po::options_description optionsPositional;
     optionsPositional.add_options()
       ("script-file",
-       po::value<std::string>()
+       po::value<string>()
        ->required(),
        "Script file")
       ("timing-file",
-       po::value<std::string>()
+       po::value<string>()
        ->required(),
        "Timing file");
     optionsAll.add (optionsPositional);
@@ -47,11 +50,11 @@ int main (int argc, char **argv)
        ->implicit_value (Log::DEBUG),
        "set verbosity level")
       ("config,C",
-       po::value<std::string>()
+       po::value<string>()
        ->value_name("FILE"),
        "read config file")
       ("output,o",
-       po::value<std::string>()
+       po::value<string>()
        ->value_name("SVG_FILE"),
        "specify the output file name. The default behaviour is to use"
        " the standard output.");
@@ -59,7 +62,12 @@ int main (int argc, char **argv)
     optionsDoc.add (optionsGeneric);
 
 // ** Terminal
-    po::options_description optionsTerm {"Terminal"};
+    po::options_description optionsTerm {
+      String ("Terminal:\n"
+              "By default, `script2svg` respectively reads the terminal size from the COLUMNS"
+              " and LINES environment variables. These options allow specifying them explicitly")
+        .wordWrap (m_default_line_length)
+        .str()};
     optionsTerm.add_options()
       ("columns,c",
        po::value<int>()
@@ -70,9 +78,7 @@ int main (int argc, char **argv)
        po::value<int>()
        ->value_name("   NB")
        ->default_value(0),
-       "number of rows.\n"
-       "With the default value (0), `script2svg` respectively reads the numbers "
-       "of columns and rows from the COLUMNS and LINES environment variables.");
+       "number of rows");
     optionsAll.add (optionsTerm);
     optionsDoc.add (optionsTerm);
 
@@ -80,14 +86,14 @@ int main (int argc, char **argv)
     po::options_description optionsFont {"Fonts"};
     optionsFont.add_options()
       ("font",
-       po::value<std::string>()
+       po::value<string>()
        ->value_name("FONT")
        ->default_value("monospace"),
        "font family")
       ("size",
-       po::value<std::string>()
+       po::value<int>()
        ->value_name("SIZE")
-       ->default_value("12"),
+       ->default_value(12),
        "font size")
       ("dx",
        po::value<int>()
@@ -106,12 +112,12 @@ int main (int argc, char **argv)
     po::options_description optionsProgress {"Progress bar"};
     optionsProgress.add_options()
       ("progress.height",
-       po::value<std::string>()
+       po::value<int>()
        ->value_name ("PX")
-       ->default_value ("5"),
+       ->default_value (5),
        "progress bar height")
       ("progress.color",
-       po::value<std::string>()
+       po::value<string>()
        ->value_name (" HEX")
        ->default_value ("0000aa"),
        "progress bar color");
@@ -122,64 +128,88 @@ int main (int argc, char **argv)
     po::options_description optionsColors {"Colors"};
     optionsColors.add_options()
       ("color.fg",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("000000")
        ->value_name ("     HEX_CODE"),
        "foreground color")
       ("color.bg",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("ffffff")
        ->value_name ("     HEX_CODE"),
        "background color")
       ("color.black",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("000000")
        ->value_name ("  HEX_CODE"),
        "black / dark gray")
       ("color.red",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("aa0000")
        ->value_name ("    HEX_CODE"),
        "red")
       ("color.green",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("00aa00")
        ->value_name ("  HEX_CODE"),
        "green")
       ("color.yellow",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("aa5500")
        ->value_name (" HEX_CODE"),
        "green")
       ("color.blue",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("0000aa")
        ->value_name ("   HEX_CODE"),
        "blue")
       ("color.magenta",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("aa00aa")
        ->value_name ("HEX_CODE"),
        "magenta")
       ("color.cyan",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("00aaaa")
        ->value_name ("   HEX_CODE"),
        "cyan")
       ("color.white",
-       po::value<std::string>()
+       po::value<string>()
        ->default_value ("ffffff")
        ->value_name ("  HEX_CODE"),
        "white / light gray");
     optionsAll.add (optionsColors);
     optionsDoc.add (optionsColors);
 
+// ** Advertisement
+    po::options_description optionsAd {
+        String("Advertisement:\n"
+               "A link is inserted at the bottom right corner of the generated SVG"
+               " animation. The following options allow customizing it")
+          .wordWrap (m_default_line_length)
+          .str()};
+    optionsAd.add_options()
+      ("ad.text",
+       po::value<string>()
+       ->value_name ("TEXT")
+       ->default_value ("Produced by script2svg"),
+       "advertisement text; if TEXT is blank, no advertisement is produced.")
+      ("ad.url",
+       po::value<string>()
+       ->value_name ("URL")
+       ->default_value ("http://github.com/ffevotte/script2svg"),
+       "advertisement URL");
+    optionsAll.add (optionsAd);
+    optionsDoc.add (optionsAd);
+
+
 // * Command-line parsing (step 1)
     auto help = [&](std::ostream & out) {
       out
       << "Usage: " << argv[0] << " [options] SCRIPT_FILE TIMING_FILE" << std::endl
       << std::endl
-      << "Produce an animated SVG representation of a recorded script session." << std::endl
+      << String ("Produce an animated SVG representation of a recorded script session.")
+      .wordWrap (m_default_line_length)
+      .str() << std::endl
       << optionsDoc << std::endl;
     };
 
@@ -196,7 +226,6 @@ int main (int argc, char **argv)
           out << e.what() << std::endl;
           help (out);
         });
-      return 1;
     }
 
 // * Early processing of simple, generic options
@@ -232,12 +261,12 @@ int main (int argc, char **argv)
           out << e.what() << std::endl;
           help (out);
         });
-      return 1;
+      return 2;
     }
 
 // * Configuration file
     if (vm.count("config")) {
-      std::string fileName {vm["config"].as<std::string>()};
+      string fileName {vm["config"].as<string>()};
       log.write<NOTICE> ([&](auto && out){
           out << "reading configuration file: '" << fileName << "'"
               << std::endl;
@@ -249,15 +278,15 @@ int main (int argc, char **argv)
         log.msg<WARNING> (e.what());
       } catch (po::error & e) {
         log.msg<ERROR> (e.what());
-        return 1;
+        return 3;
       }
       po::notify (vm);
     }
 
 // * Real work
     Terminal term (vm, log);
-    term.play(vm["script-file"].as<std::string>(),
-              vm["timing-file"].as<std::string>());
+    term.play(vm["script-file"].as<string>(),
+              vm["timing-file"].as<string>());
   } catch (std::runtime_error & e) {
     log.msg<ERROR> (e.what());
     return 1;

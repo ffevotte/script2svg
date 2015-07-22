@@ -261,8 +261,20 @@ Terminal::Terminal (const po::variables_map & vm,
 
   out() << SVG::header()
     ("$FONT", this->vm<string>("font"))
-    ("$SIZE", this->vm<string>("size"))
+    ("$SIZE", this->vm<int>("size"))
     .str();
+
+  if (this->vm<string>("ad.text") != "") {
+    out() << SVG::advertisement()
+      ("$X",    20 + this->vm<int>("dx") * (0.5+this->vm<int>("columns")))
+      ("$Y",    (20
+                 + this->vm<int>("dy") * (0.5+this->vm<int>("rows"))
+                 + this->vm<int>("progress.height")))
+      ("$SIZE", int (this->vm<int>("size") * 0.75))
+      ("$URL",  this->vm<string>("ad.url"))
+      ("$TEXT", this->vm<string>("ad.text"))
+      .str();
+  }
 }
 
 Terminal::~Terminal ()
@@ -272,7 +284,7 @@ Terminal::~Terminal ()
     ("$X0",    20)
     ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + 20)
     ("$DX",    vm<int>("dx") * vm<int>("columns"))
-    ("$DY",    vm<string>("progress.height"))
+    ("$DY",    vm<int>("progress.height"))
     ("$TIME",  time_)
     ("$COLOR", vm<string>("progress.color"))
     .str();
