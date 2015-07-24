@@ -1,5 +1,6 @@
 #pragma once
 
+#include "memory.hxx"
 #include "logger.hxx"
 #include "tsm.hxx"
 #include <vector>
@@ -7,82 +8,65 @@
 
 class Terminal;
 
-class Cell {
-public:
-  struct Text {
-    Text ();
-    bool operator!= (const Text & other) const;
-    char ch;
+struct Cell {
+  struct Prop {
+    bool operator!= (const Prop & other) const;
     int  fg;
     int  bold;
     int  underline;
   };
 
-  void term (const Terminal * term);
-  void updateText (const Text & state);
-  void drawText (uint col, uint row) const;
-
-  void updateBg (int bg);
-  void drawBg (uint col, uint row) const;
-
-private:
-  struct TimedText {
-    Text text;
-    double begin;
-    double end;
-  };
-
-  struct TimedBg {
-    int bg;
-    double begin;
-    double end;
-  };
-
-  const Terminal * term_;
-  std::vector<TimedText> ttext_;
-  std::vector<TimedBg> tbg_;
+  char ch;
+  Prop prop;
+  int  bg;
 };
 
-
-// Possibly Owning ptr
-template <typename T>
-class POptr {
+class AnimatedRow {
 public:
-  POptr ()
-    : ptr_ (0),
-      owner_ (false)
-  {}
-
-  POptr (T* ptr, bool owner)
-    : ptr_ (ptr),
-      owner_ (owner)
-  {}
-
-  // Non copyable
-  POptr (const POptr & other) = delete;
-
-  ~POptr () {
-    if (owner_)
-      delete (ptr_);
+  void init (Terminal * term, uint row) {
+    term_ = term;
+    row_  = row;
   }
 
-  void reset (T* ptr, bool owner) {
-    if (owner_)
-      delete (ptr_);
-    ptr_   = ptr;
-    owner_ = owner;
-  }
+  void update ();
+  void draw () const;
 
-  T* get () const { return ptr_; }
+protected:
+  virtual std::string state () const = 0;
+  virtual void drawState (const std::string & state,
+                          double begin, double dur) const = 0;
+  const Terminal * term_;
+  uint row_;
 
 private:
-  T * ptr_;
-  bool owner_;
+  struct TimedState {
+    std::string state;
+    double begin;
+    double end;
+  };
+
+  std::vector<TimedState> tstate_;
+};
+
+class RowText : public AnimatedRow {
+private:
+  std::string state () const;
+  void drawState (const std::string & state,
+                  double begin, double dur) const;
+};
+
+class RowBg : public AnimatedRow {
+private:
+  std::string state () const;
+  void drawState (const std::string & state,
+                  double begin, double dur) const;
 };
 
 class Terminal {
 public:
-  Terminal (const boost::program_options::variables_map & vm,
+  struct Options;
+
+  Terminal (Options & opt,
             Log::Logger & log);
 
   ~Terminal ();
@@ -92,14 +76,14 @@ public:
   std::ostream & out () const {return *(out_.get());}
   double time () const {return time_;}
 
-  template <typename T>
-  const T & vm (const std::string & key) const {
-    return vm_[key].as<T>();
+  const std::vector<Cell> & cellRow (int row) const {
+    return cell_[row];
   }
+
+  const Options & opt () const {return opt_;}
 
 private:
   void update ();
-  void update (uint col, uint row, const Cell::Text & state, int bg);
 
   // Static wrapper for C-style callbacks
   static int update (struct tsm_screen *screen, uint32_t id,
@@ -108,13 +92,60 @@ private:
                      const struct tsm_screen_attr *attr,
                      tsm_age_t age, void *data);
 
-  const boost::program_options::variables_map & vm_;
-  Log::Logger &       log_;
-  POptr<std::ostream> out_;
-  TSM::Screen         screen_;
-  TSM::VTE            vte_;
-  double              time_;
-  double              lastUpdate_;
-public:
+  Options &            opt_;
+  Log::Logger &        log_;
+  POptr<std::ostream>  out_;
+  TSM::Screen          screen_;
+  TSM::VTE             vte_;
+  double               time_;
+  double               lastUpdate_;
+  std::vector<RowText> rowText_;
+  std::vector<RowBg>   rowBg_;
   std::vector<std::vector<Cell>> cell_;
+};
+
+struct Terminal::Options {
+  std::string output;
+
+  // Terminal
+  int columns;
+  int rows;
+
+  // Fonts
+  struct Font {
+    std::string family;
+    int         size;
+    int         dx;
+    int         dy;
+  };
+  Font font;
+
+  // Progress bar
+  struct Progress {
+    int         height;
+    std::string color;
+  };
+  Progress progress;
+
+  // Colors
+  struct Color {
+    std::string fg;
+    std::string bg;
+    std::string black;
+    std::string red;
+    std::string green;
+    std::string yellow;
+    std::string blue;
+    std::string magenta;
+    std::string cyan;
+    std::string white;
+  };
+  Color color;
+
+  // Advertisement
+  struct Ad {
+    std::string text;
+    std::string url;
+  };
+  Ad ad;
 };

@@ -46,158 +46,183 @@ const string & color (int code, const Terminal * term) {
   switch (code) {
   case COLOR_BLACK:
   case COLOR_DARK_GREY:
-    return term->vm<string>("color.black");
+    return term->opt().color.black;
   case COLOR_RED:
   case COLOR_LIGHT_RED:
-    return term->vm<string>("color.red");
+    return term->opt().color.red;
   case COLOR_GREEN:
   case COLOR_LIGHT_GREEN:
-    return term->vm<string>("color.green");
+    return term->opt().color.green;
   case COLOR_YELLOW:
   case COLOR_LIGHT_YELLOW:
-    return term->vm<string>("color.yellow");
+    return term->opt().color.yellow;
   case COLOR_BLUE:
   case COLOR_LIGHT_BLUE:
-    return term->vm<string>("color.blue");
+    return term->opt().color.blue;
   case COLOR_MAGENTA:
   case COLOR_LIGHT_MAGENTA:
-    return term->vm<string>("color.magenta");
+    return term->opt().color.magenta;
   case COLOR_CYAN:
   case COLOR_LIGHT_CYAN:
-    return term->vm<string>("color.cyan");
+    return term->opt().color.cyan;
   case COLOR_LIGHT_GREY:
   case COLOR_WHITE:
-    return term->vm<string>("color.white");
+    return term->opt().color.white;
   case COLOR_FOREGROUND:
-    return term->vm<string>("color.fg");
+    return term->opt().color.fg;
   case COLOR_BACKGROUND:
-    return term->vm<string>("color.bg");
+    return term->opt().color.bg;
   }
 
   return undefined;
 }
 }
 
-Cell::Text::Text ()
-  : ch (' ')
-{}
-
-bool Cell::Text::operator!= (const Text & other) const
+bool Cell::Prop::operator!= (const Prop & other) const
 {
-  return ch        != other.ch
-    or   fg        != other.fg
+  return fg        != other.fg
     or   bold      != other.bold
     or   underline != other.underline;
 }
 
-void Cell::term (const Terminal * term)
-{
-  term_ = term;
-}
 
-void Cell::updateText (const Text & text)
+void AnimatedRow::update ()
 {
+  const std::string newState = state();
   bool upd = false;
 
-  if (ttext_.empty()) {
-    // No previous text
+  if (tstate_.empty()             // No previous state
+      or tstate_.back().end >= 0) // Old previous state
     upd = true;
-  } else if (ttext_.back().end >= 0) {
-    // Old previous text
+  else if (tstate_.back().state != newState) {
+    // Change in state
     upd = true;
-  } else if (ttext_.back().text != text) {
-    // Change in text
-    upd = true;
-    ttext_.back().end = term_->time();
+    tstate_.back().end = term_->time();
   }
 
-  if (upd and text.ch != ' ') {
-    TimedText ttext {text, term_->time(), -1};
-    ttext_.push_back (ttext);
+  if (upd and newState != "") {
+    tstate_.push_back (TimedState {
+        newState, term_->time(), -1});
   }
 }
 
-void Cell::drawText (uint col, uint row) const
+void AnimatedRow::draw () const
 {
-  if (ttext_.empty())
-    return;
+  auto & out = term_->out();
+  for (const auto & tstate: tstate_) {
+    const double end = tstate.end > 0 ? tstate.end : term_->time();
+    drawState (tstate.state,
+               tstate.begin,
+               end - tstate.begin);
+  }
+}
 
-  std::ostream & out = term_->out();
+string RowText::state () const
+{
+  std::ostringstream oss;
+  bool empty = true;
 
-  for (auto ttext: ttext_) {
-    string ch {ttext.text.ch};
+  const Cell::Prop defaultProp {TSM::COLOR_FOREGROUND, false, false};
+  Cell::Prop currentProp = defaultProp;
 
-    // Convert special chars to XML entities
-    switch (ttext.text.ch) {
-    case '<': ch = "&lt;";  break;
-    case '>': ch = "&gt;";  break;
-    case '&': ch = "&amp;"; break;
+  const auto & cellRow = term_->cellRow(row_);
+  for (const auto & cell: cellRow) {
+    if (cell.ch == ' ') {
+      oss << "&#160;";
+    } else {
+      empty = false;
+
+      if (cell.prop != currentProp) {
+        if (currentProp != defaultProp)
+          oss << SVG::propFoot().str();
+
+        currentProp = cell.prop;
+        if (currentProp != defaultProp)
+          oss << SVG::propHead()
+            ("$COLOR", currentProp.fg == TSM::COLOR_FOREGROUND ? "" :
+             " fill='#"+TSM::color(currentProp.fg, term_)+"'")
+            ("$BOLD", not currentProp.bold ? "" :
+             " font-weight='bold'")
+            ("$UNDERLINE", not currentProp.underline ? "" :
+             " text-decoration='underline'")
+            .str();
+      }
+
+      switch (cell.ch)  {
+      case '<': oss << "&lt;";  break;
+      case '>': oss << "&gt;";  break;
+      case '&': oss << "&amp;"; break;
+      default:  oss << cell.ch;
+      }
     }
-
-    const double end = ttext.end>0 ? ttext.end : term_->time();
-
-    out << SVG::textCell()
-      ("$X",     term_->vm<int>("margin.left") + col * term_->vm<int>("dx"))
-      ("$Y",     term_->vm<int>("margin.top")  + row * term_->vm<int>("dy"))
-      ("$CHAR",  ch)
-      ("$COLOR", ttext.text.fg != TSM::COLOR_FOREGROUND ?
-       (" fill='#" + TSM::color(ttext.text.fg, term_) + "'") : "")
-      ("$BOLD",  ttext.text.bold ? " font-weight='bold'" : "")
-      ("$UNDER", ttext.text.underline ? " text-decoration='underline'" : "")
-      ("$BEGIN", ttext.begin)
-      ("$DUR",   end-ttext.begin)
-      .str();
   }
+  if (currentProp != defaultProp)
+    oss << SVG::propFoot().str();
+
+  if (empty)
+    return "";
+
+  return oss.str();
 }
 
-void Cell::updateBg (int bg)
+void RowText::drawState (const string & state,
+                         double begin, double dur) const
 {
-  bool upd = false;
-
-  if (tbg_.empty()) {
-    // No previous bg
-    upd = true;
-  } else if (tbg_.back().end >= 0) {
-    // Old previous bg
-    upd = true;
-  } else if (tbg_.back().bg != bg) {
-    // Change in bg
-    upd = true;
-    tbg_.back().end = term_->time();
-  }
-
-  if (upd and bg != TSM::COLOR_BACKGROUND) {
-    TimedBg tbg {bg, term_->time(), -1};
-    tbg_.push_back (tbg);
-  }
+  term_->out() << SVG::rowText()
+    ("$X",     1)
+    ("$Y",     1 + row_ * term_->opt().font.dy)
+    ("$WIDTH", term_->opt().font.dx * term_->opt().columns)
+    ("$TEXT",  state)
+    ("$BEGIN", begin)
+    ("$DUR",   dur)
+    .str();
 }
 
-void Cell::drawBg (uint col, uint row) const
+string RowBg::state () const
 {
-  if (tbg_.empty())
-    return;
+  std::ostringstream oss;
+  int currentBg = TSM::COLOR_BACKGROUND;
+  uint col0 = 0;
 
-  std::ostream & out = term_->out();
+  auto outputBg = [&](uint col) {
+    if (currentBg != TSM::COLOR_BACKGROUND)
+      oss << SVG::bg()
+        ("$X",     1 + col0 * term_->opt().font.dx)
+        ("$Y",     1 + row_ * term_->opt().font.dy)
+        ("$WIDTH", (col-col0) * term_->opt().font.dx)
+        ("$DY",    term_->opt().font.dy)
+        ("$COLOR", TSM::color (currentBg, term_))
+        .str();
+  };
 
-  for (auto tbg: tbg_) {
-    const double end = tbg.end>0 ? tbg.end : term_->time();
+  const auto & cellRow = term_->cellRow(row_);
+  for (uint col = 0 ; col < term_->opt().columns ; ++col) {
+    const auto & cell = cellRow[col];
 
-    out << SVG::bgCell()
-      ("$X",     term_->vm<int>("margin.left") + col * term_->vm<int>("dx"))
-      ("$Y",     term_->vm<int>("margin.top")  + row * term_->vm<int>("dy"))
-      ("$DX",    term_->vm<int>("dx"))
-      ("$DY",    term_->vm<int>("dy"))
-      ("$COLOR", TSM::color(tbg.bg, term_))
-      ("$BEGIN", tbg.begin)
-      ("$DUR",   end-tbg.begin)
-      .str();
+    if (cell.bg != currentBg) {
+      outputBg (col);
+      currentBg = cell.bg;
+      col0 = col;
+    }
   }
+  outputBg (term_->opt().columns);
+
+  return oss.str();
 }
 
+void RowBg::drawState (const string & state,
+                       double begin, double dur) const
+{
+  term_->out() << SVG::rowBg()
+    ("$BG", state)
+    ("$BEGIN", begin)
+    ("$DUR", dur)
+    .str();
+}
 
-Terminal::Terminal (const po::variables_map & vm,
+Terminal::Terminal (Options & options,
                     Log::Logger & log)
-  : vm_         (vm),
+  : opt_        (options),
     log_        (log),
     screen_     (log),
     vte_        (log, screen_()),
@@ -205,74 +230,57 @@ Terminal::Terminal (const po::variables_map & vm,
     lastUpdate_ (0)
 {
   // Handle output
-  if (vm_.count ("output")) {
-    string outputName = this->vm<string>("output");
+  if (opt().output != "-") {
     log_.write<INFO> ([&](auto&&out){
-        out << "setting output to file `" << outputName << "'" << std::endl;
+        out << "setting output to file `" << this->opt().output << "'" << std::endl;
       });
-    out_.reset (new std::ofstream (outputName), /*owner*/true);
+    out_.reset (new std::ofstream (opt().output), /*owner*/true);
   } else {
     out_.reset (&std::cout, /*owner*/false);
   }
 
   // Initialize cell matrix
   {
-    int nCols = this->vm<int>("columns");
-    if (nCols == 0) {
-      const char * var = std::getenv("COLUMNS");
-      if (var) {
-        std::istringstream iss {var};
-        iss >> nCols;
-      } else {
-        throw std::runtime_error
-          ("empty COLUMNS environment variable; "
-           "please provide the `--columns' command-line option");
-      }
-    }
-
-    int nRows = this->vm<int>("rows");
-    if (nRows == 0) {
-      const char * var = std::getenv("LINES");
-      if (var) {
-        std::istringstream iss {var};
-        iss >> nRows;
-      } else {
-        throw std::runtime_error
-          ("empty LINES environment variable; "
-           "please provide the `--rows' command-line option");
-      }
-    }
-
     log_.write<INFO> ([&](auto&&out){
         out << "setting terminal size to "
-            << nCols << "x" << nRows << std::endl;
+            << this->opt().columns << "x" << this->opt().rows << std::endl;
       });
 
-    tsm_screen_resize(screen_(), nCols, nRows);
+    tsm_screen_resize(screen_(), opt().columns, opt().rows);
 
-    cell_.resize(nCols);
-    for (uint col=0 ; col<cell_.size() ; ++col) {
-      cell_[col].resize(nRows);
-      for (uint row=0 ; row<cell_[col].size() ; ++row) {
-        cell_[col][row].term(this);
-      }
+    cell_.resize(opt().rows);
+    for (uint row=0 ; row<opt().rows ; ++row) {
+      cell_[row].resize(opt().columns);
     }
   }
 
+  // Initialize row vectors
+  rowText_.resize (opt().rows);
+  rowBg_.resize (opt().rows);
+  for (uint row=0 ; row<opt().rows ; ++row) {
+    rowText_[row].init (this, row);
+    rowBg_[row].init   (this, row);
+  }
+
+  const int width = 1 + opt().font.dx*(0.5+opt().columns);
+
+  const int height = 1 + opt().font.dy*(0.5+opt().rows) + opt().progress.height;
+
   out() << SVG::header()
-    ("$FONT", this->vm<string>("font"))
-    ("$SIZE", this->vm<int>("size"))
+    ("$FONT", opt().font.family)
+    ("$SIZE", opt().font.size)
+    ("$FG",   opt().color.fg)
+    ("$WIDTH",  width + opt().font.size + 1)
+    ("$HEIGHT", height + 1)
     .str();
 
-  if (this->vm<string>("ad.text") != "") {
+  if (opt().ad.text != "") {
     out() << SVG::advertisement()
-      ("$X",    this->vm<int>("margin.left") + this->vm<int>("dx") * (0.5+this->vm<int>("columns")))
-      ("$Y",    (this->vm<int>("margin.top")
-                 + this->vm<int>("dy") * (0.5+this->vm<int>("rows"))
-                 + this->vm<int>("progress.height")))
-      ("$SIZE", int (this->vm<int>("size") * 0.75))
-      ("$URL",  this->vm<string>("ad.url"))
-      ("$TEXT", this->vm<string>("ad.text"))
+      ("$X",    width)
+      ("$Y",    height)
+      ("$SIZE", int (opt().font.size * 0.75))
+      ("$URL",  opt().ad.url)
+      ("$TEXT", opt().ad.text)
       .str();
   }
 }
@@ -281,39 +289,26 @@ Terminal::~Terminal ()
 {
   // Progress bar
   out() << SVG::progress()
-    ("$X0",    vm<int>("margin.left"))
-    ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + vm<int>("margin.top"))
-    ("$DX",    vm<int>("dx") * vm<int>("columns"))
-    ("$DY",    vm<int>("progress.height"))
+    ("$X0",    1)
+    ("$Y0",    1 + opt().font.dy * (opt().rows + 0.5))
+    ("$DX",    opt().font.dx * opt().columns)
+    ("$DY",    opt().progress.height)
     ("$TIME",  time_)
-    ("$COLOR", vm<string>("progress.color"))
+    ("$COLOR", opt().progress.color)
     .str();
   time_ += 1;
 
   // Background
   out() << SVG::bgHead()
-    ("$X0",     vm<int>("margin.left") - 1)
-    ("$Y0",     vm<int>("margin.top")  - 1)
-    ("$WIDTH",  vm<int>("dx") * vm<int>("columns") + 2)
-    ("$HEIGHT", vm<int>("dy") * vm<int>("rows") + 2)
-    ("$BG",     vm<string>("color.bg"))
+    ("$WIDTH",  opt().font.dx * opt().columns + 2)
+    ("$HEIGHT", opt().font.dy * opt().rows + 2)
+    ("$BG",     opt().color.bg)
     .str();
-  for (uint row = 0 ; row<cell_[0].size() ; ++row) {
-    for (uint col = 0 ; col<cell_.size() ; col++) {
-      cell_[col][row].drawBg (col, row);
-    }
-  }
+  for (const auto & row: rowBg_) {row.draw();}
 
   // Text
-  out() << SVG::textHead()
-    ("$FG", vm<string>("color.fg"))
-    .str();
-  for (uint row = 0 ; row<cell_[0].size() ; ++row) {
-    for (uint col = 0 ; col<cell_.size() ; col++) {
-      cell_[col][row].drawText (col, row);
-    }
-  }
-  out() << SVG::textFoot().str();
+  out() << SVG::textHead().str();
+  for (const auto & row: rowText_) {row.draw();}
 
   // SVG footer
   out() << SVG::footer().str();
@@ -429,42 +424,41 @@ void Terminal::update ()
     });
   tsm_screen_draw (screen_(), update, this);
   lastUpdate_ = time_;
-}
 
-void Terminal::update (uint col, uint row, const Cell::Text & text, int bg)
-{
-  if (col >= cell_.size())      return;
-  if (row >= cell_[col].size()) return;
-  cell_[col][row].updateText (text);
-  cell_[col][row].updateBg (bg);
+  for (auto & row : rowText_) {row.update();}
+  for (auto & row : rowBg_)   {row.update();}
 }
-
 
 int Terminal::update (struct tsm_screen *screen, uint32_t id,
                       const uint32_t *ch, size_t len, unsigned int cwidth,
-                      unsigned int posx, unsigned int posy,
+                      unsigned int col, unsigned int row,
                       const struct tsm_screen_attr *attr,
                       tsm_age_t age, void *data)
 {
   Terminal * term = (Terminal*)data;
 
-  Cell::Text text;
-  int bg;
+  if (row >= term->opt().rows)
+    return 1;
+  if (col >= term->opt().columns)
+    return 1;
 
-  text.fg = attr->fccode;
-  bg = attr->bccode;
+  auto & cell = term->cell_[row][col];
+
+  cell.prop.fg = attr->fccode;
+  cell.bg = attr->bccode;
 
   if (attr->inverse) {
-    std::swap (text.fg, bg);
+    std::swap (cell.prop.fg, cell.bg);
   }
 
-  text.bold = attr->bold;
-  text.underline = attr->underline;
+  cell.prop.bold = attr->bold;
+  cell.prop.underline = attr->underline;
 
   if (len) {
-    text.ch = static_cast<char>(*ch);
+    cell.ch = static_cast<char>(*ch);
+  } else {
+    cell.ch = ' ';
   }
-  term->update (posx, posy, text, bg);
 
   return 0;
 }

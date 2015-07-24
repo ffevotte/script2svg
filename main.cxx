@@ -5,6 +5,8 @@
 #include <iostream>
 #include <boost/program_options.hpp>
 
+using std::string;
+
 int main (int argc, char **argv)
 {
   using Log::ERROR;
@@ -15,11 +17,12 @@ int main (int argc, char **argv)
 
   try {
 // * Options definition
-    using std::string;
     namespace po = boost::program_options;
     auto & m_default_line_length {po::options_description::m_default_line_length};
     po::options_description optionsAll;
     po::options_description optionsDoc;
+
+    Terminal::Options options;
 
 // ** Positional arguments
     po::options_description optionsPositional;
@@ -50,12 +53,13 @@ int main (int argc, char **argv)
        ->implicit_value (Log::DEBUG),
        "set verbosity level")
       ("config,C",
-       po::value<string>()
+       po::value<std::vector<string>>()
        ->value_name("FILE"),
        "read config file")
       ("output,o",
-       po::value<string>()
-       ->value_name("SVG_FILE"),
+       po::value<string>(&options.output)
+       ->value_name("SVG_FILE")
+       ->default_value("-"),
        "specify the output file name. The default behaviour is to use"
        " the standard output.");
     optionsAll.add (optionsGeneric);
@@ -70,12 +74,12 @@ int main (int argc, char **argv)
         .str()};
     optionsTerm.add_options()
       ("columns,c",
-       po::value<int>()
+       po::value<int>(&options.columns)
        ->value_name("NB")
        ->default_value(0),
        "number of columns")
       ("rows,r",
-       po::value<int>()
+       po::value<int>(&options.rows)
        ->value_name("   NB")
        ->default_value(0),
        "number of rows");
@@ -85,26 +89,27 @@ int main (int argc, char **argv)
 // ** Fonts
     po::options_description optionsFont {"Fonts"};
     optionsFont.add_options()
-      ("font",
-       po::value<string>()
+      ("font.family",
+       po::value<string>(&options.font.family)
        ->value_name("FONT")
        ->default_value("monospace"),
        "font family")
-      ("size",
-       po::value<int>()
-       ->value_name("SIZE")
+      ("font.size",
+       po::value<int>(&options.font.size)
+       ->value_name("  SIZE")
        ->default_value(12),
        "font size")
-      ("dx",
-       po::value<int>()
-       ->value_name("PX")
-       ->default_value(8),
+      ("font.dx",
+       po::value<int>(&options.font.dx)
+       ->value_name("    PX")
+       ->default_value(0),
        "horizontal cell size")
-      ("dy",
-       po::value<int>()
-       ->value_name("PX")
-       ->default_value(14),
-       "vertical cell size");
+      ("font.dy",
+       po::value<int>(&options.font.dy)
+       ->value_name("    PX")
+       ->default_value(0),
+       "vertical cell size.\nThe default behaviour is to try and automatically"
+       " determine the cell size based on the font size.");
     optionsAll.add (optionsFont);
     optionsDoc.add (optionsFont);
 
@@ -112,12 +117,12 @@ int main (int argc, char **argv)
     po::options_description optionsProgress {"Progress bar"};
     optionsProgress.add_options()
       ("progress.height",
-       po::value<int>()
+       po::value<int>(&options.progress.height)
        ->value_name ("PX")
        ->default_value (5),
        "progress bar height")
       ("progress.color",
-       po::value<string>()
+       po::value<string>(&options.progress.color)
        ->value_name (" HEX")
        ->default_value ("0000aa"),
        "progress bar color");
@@ -128,73 +133,57 @@ int main (int argc, char **argv)
     po::options_description optionsColors {"Colors"};
     optionsColors.add_options()
       ("color.fg",
-       po::value<string>()
+       po::value<string>(&options.color.fg)
        ->default_value ("000000")
        ->value_name ("     HEX_CODE"),
        "foreground color")
       ("color.bg",
-       po::value<string>()
+       po::value<string>(&options.color.bg)
        ->default_value ("ffffff")
        ->value_name ("     HEX_CODE"),
        "background color")
       ("color.black",
-       po::value<string>()
+       po::value<string>(&options.color.black)
        ->default_value ("000000")
        ->value_name ("  HEX_CODE"),
        "black / dark gray")
       ("color.red",
-       po::value<string>()
+       po::value<string>(&options.color.red)
        ->default_value ("aa0000")
        ->value_name ("    HEX_CODE"),
        "red")
       ("color.green",
-       po::value<string>()
+       po::value<string>(&options.color.green)
        ->default_value ("00aa00")
        ->value_name ("  HEX_CODE"),
        "green")
       ("color.yellow",
-       po::value<string>()
+       po::value<string>(&options.color.yellow)
        ->default_value ("aa5500")
        ->value_name (" HEX_CODE"),
        "green")
       ("color.blue",
-       po::value<string>()
+       po::value<string>(&options.color.blue)
        ->default_value ("0000aa")
        ->value_name ("   HEX_CODE"),
        "blue")
       ("color.magenta",
-       po::value<string>()
+       po::value<string>(&options.color.magenta)
        ->default_value ("aa00aa")
        ->value_name ("HEX_CODE"),
        "magenta")
       ("color.cyan",
-       po::value<string>()
+       po::value<string>(&options.color.cyan)
        ->default_value ("00aaaa")
        ->value_name ("   HEX_CODE"),
        "cyan")
       ("color.white",
-       po::value<string>()
-       ->default_value ("ffffff")
+       po::value<string>(&options.color.white)
+       ->default_value ("aaaaaa")
        ->value_name ("  HEX_CODE"),
        "white / light gray");
     optionsAll.add (optionsColors);
     optionsDoc.add (optionsColors);
-
-// ** Margins
-    po::options_description optionsMargins {"Margins"};
-    optionsMargins.add_options()
-      ("margin.left",
-       po::value<int>()
-       ->value_name ("PX")
-       ->default_value (1),
-       "left margin")
-      ("margin.top",
-       po::value<int>()
-       ->value_name (" PX")
-       ->default_value (1),
-       "top margin");
-    optionsAll.add (optionsMargins);
-    optionsDoc.add (optionsMargins);
 
 // ** Advertisement
     po::options_description optionsAd {
@@ -205,12 +194,12 @@ int main (int argc, char **argv)
           .str()};
     optionsAd.add_options()
       ("ad.text",
-       po::value<string>()
+       po::value<string>(&options.ad.text)
        ->value_name ("TEXT")
        ->default_value ("Produced by script2svg"),
        "advertisement text; if TEXT is blank, no advertisement is produced.")
       ("ad.url",
-       po::value<string>()
+       po::value<string>(&options.ad.url)
        ->value_name ("URL")
        ->default_value ("http://github.com/ffevotte/script2svg"),
        "advertisement URL");
@@ -238,10 +227,11 @@ int main (int argc, char **argv)
          .run(),
          vm);
     } catch (po::error & e) {
-      log.write<WARNING> ([&](auto&&out) {
+      log.write<ERROR> ([&](auto&&out) {
           out << e.what() << std::endl;
           help (out);
         });
+      return 1;
     }
 
 // * Early processing of simple, generic options
@@ -281,31 +271,69 @@ int main (int argc, char **argv)
     }
 
 // * Configuration file
-    if (vm.count("config")) {
-      string fileName {vm["config"].as<string>()};
-      log.write<NOTICE> ([&](auto && out){
-          out << "reading configuration file: '" << fileName << "'"
-              << std::endl;
-        });
-      try {
-        po::store (po::parse_config_file<char> (fileName.c_str(), optionsDoc),
-                   vm);
-      } catch (po::reading_file & e){
-        log.msg<WARNING> (e.what());
-      } catch (po::error & e) {
-        log.msg<ERROR> (e.what());
-        return 3;
+    if (vm.count("config"))
+      for (const string & fileName: vm["config"].as<std::vector<string>>()) {
+        log.write<NOTICE> ([&](auto && out){
+            out << "reading configuration file: '" << fileName << "'"
+                << std::endl;
+          });
+        try {
+          po::store (po::parse_config_file<char> (fileName.c_str(), optionsDoc),
+                     vm);
+        } catch (po::reading_file & e){
+          log.msg<WARNING> (e.what());
+        } catch (po::error & e) {
+          log.msg<ERROR> (e.what());
+          return 3;
+        }
+        po::notify (vm);
       }
-      po::notify (vm);
+
+// * Handling of complex default values
+
+// ** Terminal size
+    if (options.columns == 0) {
+      const char * var = std::getenv("COLUMNS");
+      if (var) {
+        std::istringstream iss {var};
+        iss >> options.columns;
+      } else {
+        throw std::runtime_error
+          ("empty COLUMNS environment variable; "
+           "please provide the `--columns' command-line option");
+      }
     }
 
+    if (options.rows == 0) {
+      const char * var = std::getenv("LINES");
+      if (var) {
+        std::istringstream iss {var};
+        iss >> options.rows;
+      } else {
+        throw std::runtime_error
+          ("empty LINES environment variable; "
+           "please provide the `--rows' command-line option");
+      }
+    }
+
+// ** Font size
+    if (options.font.dx == 0) {
+      options.font.dx = options.font.size * 0.67;
+    }
+
+    if (options.font.dy == 0) {
+      options.font.dy = std::max (options.font.size * 1.3,
+                                  options.font.size + 2.);
+    }
+
+
 // * Real work
-    Terminal term (vm, log);
+    Terminal term (options, log);
     term.play(vm["script-file"].as<string>(),
               vm["timing-file"].as<string>());
   } catch (std::runtime_error & e) {
     log.msg<ERROR> (e.what());
-    return 1;
+    return 4;
   }
 
   return 0;
