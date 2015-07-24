@@ -46,32 +46,32 @@ const string & color (int code, const Terminal * term) {
   switch (code) {
   case COLOR_BLACK:
   case COLOR_DARK_GREY:
-    return term->vm<string>("color.black");
+    return term->opt().color.black;
   case COLOR_RED:
   case COLOR_LIGHT_RED:
-    return term->vm<string>("color.red");
+    return term->opt().color.red;
   case COLOR_GREEN:
   case COLOR_LIGHT_GREEN:
-    return term->vm<string>("color.green");
+    return term->opt().color.green;
   case COLOR_YELLOW:
   case COLOR_LIGHT_YELLOW:
-    return term->vm<string>("color.yellow");
+    return term->opt().color.yellow;
   case COLOR_BLUE:
   case COLOR_LIGHT_BLUE:
-    return term->vm<string>("color.blue");
+    return term->opt().color.blue;
   case COLOR_MAGENTA:
   case COLOR_LIGHT_MAGENTA:
-    return term->vm<string>("color.magenta");
+    return term->opt().color.magenta;
   case COLOR_CYAN:
   case COLOR_LIGHT_CYAN:
-    return term->vm<string>("color.cyan");
+    return term->opt().color.cyan;
   case COLOR_LIGHT_GREY:
   case COLOR_WHITE:
-    return term->vm<string>("color.white");
+    return term->opt().color.white;
   case COLOR_FOREGROUND:
-    return term->vm<string>("color.fg");
+    return term->opt().color.fg;
   case COLOR_BACKGROUND:
-    return term->vm<string>("color.bg");
+    return term->opt().color.bg;
   }
 
   return undefined;
@@ -169,9 +169,9 @@ void RowText::drawState (const string & state,
                          double begin, double dur) const
 {
   term_->out() << SVG::rowText()
-    ("$X",     term_->vm<int>("margin.left"))
-    ("$Y",     term_->vm<int>("margin.top") + row_ * term_->vm<int>("dy"))
-    ("$WIDTH", term_->vm<int>("dx") * term_->nCols())
+    ("$X",     1)
+    ("$Y",     1 + row_ * term_->opt().font.dy)
+    ("$WIDTH", term_->opt().font.dx * term_->opt().columns)
     ("$TEXT",  state)
     ("$BEGIN", begin)
     ("$DUR",   dur)
@@ -187,16 +187,16 @@ string RowBg::state () const
   auto outputBg = [&](uint col) {
     if (currentBg != TSM::COLOR_BACKGROUND)
       oss << SVG::bg()
-        ("$X",     term_->vm<int>("margin.left") + col0 * term_->vm<int>("dx"))
-        ("$Y",     term_->vm<int>("margin.top")  + row_ * term_->vm<int>("dy"))
-        ("$WIDTH", (col-col0) * term_->vm<int>("dx"))
-        ("$DY",    term_->vm<int>("dy"))
+        ("$X",     1 + col0 * term_->opt().font.dx)
+        ("$Y",     1 + row_ * term_->opt().font.dy)
+        ("$WIDTH", (col-col0) * term_->opt().font.dx)
+        ("$DY",    term_->opt().font.dy)
         ("$COLOR", TSM::color (currentBg, term_))
         .str();
   };
 
   const auto & cellRow = term_->cellRow(row_);
-  for (uint col = 0 ; col < term_->nCols() ; ++col) {
+  for (uint col = 0 ; col < term_->opt().columns ; ++col) {
     const auto & cell = cellRow[col];
 
     if (cell.bg != currentBg) {
@@ -205,7 +205,7 @@ string RowBg::state () const
       col0 = col;
     }
   }
-  outputBg (term_->nCols());
+  outputBg (term_->opt().columns);
 
   return oss.str();
 }
@@ -220,9 +220,9 @@ void RowBg::drawState (const string & state,
     .str();
 }
 
-Terminal::Terminal (const po::variables_map & vm,
+Terminal::Terminal (Options & options,
                     Log::Logger & log)
-  : vm_         (vm),
+  : opt_        (options),
     log_        (log),
     screen_     (log),
     vte_        (log, screen_()),
@@ -230,87 +230,57 @@ Terminal::Terminal (const po::variables_map & vm,
     lastUpdate_ (0)
 {
   // Handle output
-  if (vm_.count ("output")) {
-    string outputName = this->vm<string>("output");
+  if (opt().output != "-") {
     log_.write<INFO> ([&](auto&&out){
-        out << "setting output to file `" << outputName << "'" << std::endl;
+        out << "setting output to file `" << this->opt().output << "'" << std::endl;
       });
-    out_.reset (new std::ofstream (outputName), /*owner*/true);
+    out_.reset (new std::ofstream (opt().output), /*owner*/true);
   } else {
     out_.reset (&std::cout, /*owner*/false);
   }
 
   // Initialize cell matrix
   {
-    int nCols = this->vm<int>("columns");
-    if (nCols == 0) {
-      const char * var = std::getenv("COLUMNS");
-      if (var) {
-        std::istringstream iss {var};
-        iss >> nCols;
-      } else {
-        throw std::runtime_error
-          ("empty COLUMNS environment variable; "
-           "please provide the `--columns' command-line option");
-      }
-    }
-
-    int nRows = this->vm<int>("rows");
-    if (nRows == 0) {
-      const char * var = std::getenv("LINES");
-      if (var) {
-        std::istringstream iss {var};
-        iss >> nRows;
-      } else {
-        throw std::runtime_error
-          ("empty LINES environment variable; "
-           "please provide the `--rows' command-line option");
-      }
-    }
-
     log_.write<INFO> ([&](auto&&out){
         out << "setting terminal size to "
-            << nCols << "x" << nRows << std::endl;
+            << this->opt().columns << "x" << this->opt().rows << std::endl;
       });
 
-    tsm_screen_resize(screen_(), nCols, nRows);
+    tsm_screen_resize(screen_(), opt().columns, opt().rows);
 
-    cell_.resize(nRows);
-    for (uint row=0 ; row<nRows ; ++row) {
-      cell_[row].resize(nCols);
+    cell_.resize(opt().rows);
+    for (uint row=0 ; row<opt().rows ; ++row) {
+      cell_[row].resize(opt().columns);
     }
   }
 
   // Initialize row vectors
-  rowText_.resize (nRows());
-  rowBg_.resize (nRows());
-  for (uint row=0 ; row<nRows() ; ++row) {
+  rowText_.resize (opt().rows);
+  rowBg_.resize (opt().rows);
+  for (uint row=0 ; row<opt().rows ; ++row) {
     rowText_[row].init (this, row);
     rowBg_[row].init   (this, row);
   }
 
-  const int width = this->vm<int>("margin.left")
-    + this->vm<int>("dx") * (0.5+this->vm<int>("columns"));
+  const int width = 1 + opt().font.dx*(0.5+opt().columns);
 
-  const int height = this->vm<int>("margin.top")
-    + this->vm<int>("dy") * (0.5+this->vm<int>("rows"))
-    + this->vm<int>("progress.height") ;
+  const int height = 1 + opt().font.dy*(0.5+opt().rows) + opt().progress.height;
 
   out() << SVG::header()
-    ("$FONT", this->vm<string>("font"))
-    ("$SIZE", this->vm<int>("size"))
-    ("$FG",   this->vm<string>("color.fg"))
-    ("$WIDTH",  width + this->vm<int>("size") + 1)
+    ("$FONT", opt().font.family)
+    ("$SIZE", opt().font.size)
+    ("$FG",   opt().color.fg)
+    ("$WIDTH",  width + opt().font.size + 1)
     ("$HEIGHT", height + 1)
     .str();
 
-  if (this->vm<string>("ad.text") != "") {
+  if (opt().ad.text != "") {
     out() << SVG::advertisement()
       ("$X",    width)
       ("$Y",    height)
-      ("$SIZE", int (this->vm<int>("size") * 0.75))
-      ("$URL",  this->vm<string>("ad.url"))
-      ("$TEXT", this->vm<string>("ad.text"))
+      ("$SIZE", int (opt().font.size * 0.75))
+      ("$URL",  opt().ad.url)
+      ("$TEXT", opt().ad.text)
       .str();
   }
 }
@@ -319,22 +289,20 @@ Terminal::~Terminal ()
 {
   // Progress bar
   out() << SVG::progress()
-    ("$X0",    vm<int>("margin.left"))
-    ("$Y0",    vm<int>("dy") * (vm<int>("rows") + 0.5) + vm<int>("margin.top"))
-    ("$DX",    vm<int>("dx") * vm<int>("columns"))
-    ("$DY",    vm<int>("progress.height"))
+    ("$X0",    1)
+    ("$Y0",    1 + opt().font.dy * (opt().rows + 0.5))
+    ("$DX",    opt().font.dx * opt().columns)
+    ("$DY",    opt().progress.height)
     ("$TIME",  time_)
-    ("$COLOR", vm<string>("progress.color"))
+    ("$COLOR", opt().progress.color)
     .str();
   time_ += 1;
 
   // Background
   out() << SVG::bgHead()
-    ("$X0",     vm<int>("margin.left") - 1)
-    ("$Y0",     vm<int>("margin.top")  - 1)
-    ("$WIDTH",  vm<int>("dx") * vm<int>("columns") + 2)
-    ("$HEIGHT", vm<int>("dy") * vm<int>("rows") + 2)
-    ("$BG",     vm<string>("color.bg"))
+    ("$WIDTH",  opt().font.dx * opt().columns + 2)
+    ("$HEIGHT", opt().font.dy * opt().rows + 2)
+    ("$BG",     opt().color.bg)
     .str();
   for (const auto & row: rowBg_) {row.draw();}
 
@@ -469,9 +437,9 @@ int Terminal::update (struct tsm_screen *screen, uint32_t id,
 {
   Terminal * term = (Terminal*)data;
 
-  if (row >= term->nRows())
+  if (row >= term->opt().rows)
     return 1;
-  if (col >= term->nCols())
+  if (col >= term->opt().columns)
     return 1;
 
   auto & cell = term->cell_[row][col];

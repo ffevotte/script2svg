@@ -64,7 +64,9 @@ private:
 
 class Terminal {
 public:
-  Terminal (const boost::program_options::variables_map & vm,
+  struct Options;
+
+  Terminal (Options & opt,
             Log::Logger & log);
 
   ~Terminal ();
@@ -74,22 +76,11 @@ public:
   std::ostream & out () const {return *(out_.get());}
   double time () const {return time_;}
 
-  template <typename T>
-  const T & vm (const std::string & key) const {
-    return vm_[key].as<T>();
-  }
-
   const std::vector<Cell> & cellRow (int row) const {
     return cell_[row];
   }
 
-  unsigned int nRows () const {
-    return cell_.size();
-  }
-
-  unsigned int nCols () const {
-    return cell_[0].size();
-  }
+  const Options & opt () const {return opt_;}
 
 private:
   void update ();
@@ -101,7 +92,7 @@ private:
                      const struct tsm_screen_attr *attr,
                      tsm_age_t age, void *data);
 
-  const boost::program_options::variables_map & vm_;
+  Options &            opt_;
   Log::Logger &        log_;
   POptr<std::ostream>  out_;
   TSM::Screen          screen_;
@@ -111,4 +102,50 @@ private:
   std::vector<RowText> rowText_;
   std::vector<RowBg>   rowBg_;
   std::vector<std::vector<Cell>> cell_;
+};
+
+struct Terminal::Options {
+  std::string output;
+
+  // Terminal
+  int columns;
+  int rows;
+
+  // Fonts
+  struct Font {
+    std::string family;
+    int         size;
+    int         dx;
+    int         dy;
+  };
+  Font font;
+
+  // Progress bar
+  struct Progress {
+    int         height;
+    std::string color;
+  };
+  Progress progress;
+
+  // Colors
+  struct Color {
+    std::string fg;
+    std::string bg;
+    std::string black;
+    std::string red;
+    std::string green;
+    std::string yellow;
+    std::string blue;
+    std::string magenta;
+    std::string cyan;
+    std::string white;
+  };
+  Color color;
+
+  // Advertisement
+  struct Ad {
+    std::string text;
+    std::string url;
+  };
+  Ad ad;
 };

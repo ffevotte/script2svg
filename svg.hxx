@@ -83,7 +83,7 @@ Template bgHead ()
 {
   return Template
     ("<!-- Background -->\n"
-     "<rect x='$X0' y='$Y0' width='$WIDTH' height='$HEIGHT' fill='#$BG'/>\n");
+     "<rect x='0' y='0' width='$WIDTH' height='$HEIGHT' fill='#$BG'/>\n");
 }
 
 Template rowBg ()
