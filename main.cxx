@@ -18,7 +18,7 @@ int main (int argc, char **argv)
   try {
 // * Options definition
     namespace po = boost::program_options;
-    auto & m_default_line_length {po::options_description::m_default_line_length};
+    auto & m_default_line_length = po::options_description::m_default_line_length;
     po::options_description optionsAll;
     po::options_description optionsDoc;
 

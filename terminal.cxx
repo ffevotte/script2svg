@@ -267,9 +267,9 @@ Terminal::Terminal (Options & options,
   const int height = 1 + opt().font.dy*(0.5+opt().rows) + opt().progress.height;
 
   out() << SVG::header()
-    ("$FONT", opt().font.family)
-    ("$SIZE", opt().font.size)
-    ("$FG",   opt().color.fg)
+    ("$FONT",   opt().font.family)
+    ("$SIZE",   opt().font.size)
+    ("$FG",     opt().color.fg)
     ("$WIDTH",  width + opt().font.size + 1)
     ("$HEIGHT", height + 1)
     .str();
@@ -296,7 +296,7 @@ Terminal::~Terminal ()
     ("$TIME",  time_)
     ("$COLOR", opt().progress.color)
     .str();
-  time_ += 1;
+  time_ += 0.01;
 
   // Background
   out() << SVG::bgHead()
@@ -312,6 +312,11 @@ Terminal::~Terminal ()
 
   // SVG footer
   out() << SVG::footer().str();
+
+  log_.write<NOTICE> ([&](auto&&out){
+      out << "animation duration: "
+          << std::setprecision(2) << std::fixed << this->time_ << "s." << std::endl;
+    });
 }
 
 void Terminal::play (const string & scriptPath, const string timingPath)
@@ -340,7 +345,6 @@ void Terminal::play (const string & scriptPath, const string timingPath)
   std::unique_ptr<char[]> bufGuard {new char [bufferSize]};
   char * buffer {bufGuard.get()};
 
-  double shouldUpdate = -1;
 
   { // Discard the first delay
     //
@@ -350,13 +354,14 @@ void Terminal::play (const string & scriptPath, const string timingPath)
     timing >> discard;
   }
 
+  double shouldUpdate = 0;
   while (true) {
     int nb;
     timing >> nb;
     if (timing.good()) {
       // The delay is taken to be 0 if it can not be read (happens for the last
       // line of the timing file, again because of this unexplained shift)
-      double delay = 0;
+      double delay = 2;
       timing >> delay;
 
       if (shouldUpdate < 0
@@ -364,7 +369,7 @@ void Terminal::play (const string & scriptPath, const string timingPath)
         shouldUpdate = time_;
       }
 
-      if (shouldUpdate > 0
+      if (shouldUpdate >= 0
           and time_ + delay > shouldUpdate + 0.01) {
         update();
         shouldUpdate = -1;
