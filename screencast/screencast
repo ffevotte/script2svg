@@ -1,0 +1,80 @@
+#!/bin/bash
+
+function type () {
+    xdotool type --delay=${DELAY} "$1"
+    xdotool key Return
+}
+
+function typeN () {
+    xdotool type --delay=${DELAY} "$1"
+}
+
+function keys () {
+    xdotool key "$1"
+    while shift; do
+        sleep 0.5
+        xdotool key "$1"
+    done
+}
+
+ROOTDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+TMPDIR=$(mktemp -d)
+PATH="${PATH}:${PWD}"
+
+cd "${TMPDIR}"
+cat >.bashrc <<EOF
+PS1='$ '
+alias emacs="emacs -nw -Q"
+alias firefox="true"
+unset IGNOREEOF
+LANG=C
+EOF
+
+cp ${ROOTDIR}/terminal.cxx .
+
+HOME="${PWD}"
+gnome-terminal &
+sleep 1
+
+
+DELAY=0
+type "stty cols 80"
+type "stty rows 24"
+type "export COLUMNS"
+type "export LINES"
+type "script -t screencast.script 2>screencast.timing"
+keys ctrl+l
+
+DELAY=150
+type "# Start recording"; sleep 0.2
+type "script -t scriptfile 2> timing"; sleep 1
+keys Return
+type "# Do whatever you want in the terminal"; sleep 1
+typeN "emacs"; sleep 1; keys Return; sleep 1
+type "It also works for curses applications"; sleep 1
+keys "ctrl+x" "ctrl+f"
+typeN "terminal.cxx"; sleep 1; keys Return; sleep 1
+keys ctrl+s t s m underscore; sleep 1
+keys ctrl+s Return ctrl+Left ctrl+at ctrl+Right ctrl+Right ctrl+Right
+sleep 1
+keys ctrl+x ctrl+c
+sleep 1
+keys Return
+type "# Now exit to stop recording"; sleep 0.2
+type "exit"; sleep 1
+keys Return
+type "# and use script2svg to produce an SVG animation"; sleep 1
+type "script2svg scriptfile timing -o screencast.svg"; sleep 1
+keys Return
+type "# That's it. Enjoy!"; sleep 0.2
+type "firefox screencast.svg"
+DELAY=0
+keys "ctrl+d"
+keys "ctrl+d"
+
+cp screencast.* ${ROOTDIR}
+
+cd ${ROOTDIR}
+rm -rf "${TMPDIR}"
+
+script2svg -c 80 -r 24 screencast.script screencast.timing -o screencast.svg

@@ -1,0 +1,150 @@
+Script started on Sat Jul 25 22:09:05 2015
+$ [H[2J$ # Start recording
+$ script -t scriptfile 2> timing
+Script started, file is scriptfile
+$ 
+$ # Do whatever you want in the terminal
+$ emacs
+[?1049h[?12;25h[?1h=[H[2J[>0c[H[2J[24d[K[H[?25l[7mFile Edit Options Buffers Tools Lisp-Interaction Help                           [0m[39;49m[27m
+[A
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[7m-=--:----F1  [0m[39;49m[27m[7m[1m*scratch*   [0m[39;49m[27m[7m   All L1     (Lisp Interaction) ----------------------[0m[39;49m[27m
+[A[2d[?12l[?25h[?12;25h[24d[?25lFor information about GNU Emacs and the GNU system, type C-h C-a.[H
+[?12l[?25h[?12;25h[24d[?25lFor information about GNU Emacs and the GNU system, type C-h C-a.[K[H[7mFile Edit Options Buffers Tools Lisp-Interaction Help                           [0m[39;49m[27m
+[A
+[31m;; This buffer is for notes you don't want to save, and for Lisp evaluation.    [39;49m
+[A
+[31m;; If you want to create a file, visit that file with C-x C-f,                  [39;49m
+[A
+[31m;; then enter the text in that file's own buffer.                               [39;49m
+[A
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[K
+[7m-=--:----F1  [0m[39;49m[27m[7m[1m*scratch*   [0m[39;49m[27m[7m   All L5     (Lisp Interaction) ----------------------[0m[39;49m[27m
+[A[6d[?12l[?25h[?12;25h[24d[K[6d[?25lI[23;6H[7m**[0m[39;49m[27m[6;2H[?12l[?25h[?12;25h[?25lt[?12l[?25h[?12;25h[C[?25la[?12l[?25h[?12;25h[?25ll[?12l[?25h[?12;25h[?25ls[?12l[?25h[?12;25h[?25lo[?12l[?25h[?12;25h	[?25lw[?12l[?25h[?12;25h[?25lo[?12l[?25h[?12;25h[?25lr[?12l[?25h[?12;25h[?25lk[?12l[?25h[?12;25h[?25ls[?12l[?25h[?12;25h[C[?25lf[?12l[?25h[?12;25h[?25lo[?12l[?25h[?12;25h[?25lr[?12l[?25h[?12;25h[C[?25lc[?12l[?25h[?12;25h[?25lu[?12l[?25h[?12;25h[?25lr[?12l[?25h[?12;25h[?25ls[?12l[?25h[?12;25h[?25le[?12l[?25h[?12;25h[?25ls[?12l[?25h[?12;25h[C[?25la[?12l[?25h[?12;25h[?25lp[?12l[?25h[?12;25h[?25lp[?12l[?25h[?12;25h[?25ll[?12l[?25h[?12;25h[?25li[?12l[?25h[?12;25h[?25lc[?12l[?25h[?12;25h[?25la[?12l[?25h[?12;25h[?25lt[?12l[?25h[?12;25h[?25li[?12l[?25h[?12;25h[?25lo[?12l[?25h[?12;25h[?25ln[?12l[?25h[?12;25h[?25ls[?12l[?25h[?12;25h[23;34H[?25l[7m6[0m[39;49m[27m[7;1H[?12l[?25h[?12;25h[24d[?25l[34mFind file: [39;49m~/[1;33H[7mMinibuf Help         [0m[39;49m[27m[24;14H[?12l[?25h[?12;25h[?25lt[?12l[?25h[?12;25h[?25le[?12l[?25h[?12;25h[?25lr[?12l[?25h[?12;25h[?25lm[?12l[?25h[?12;25h[?25li[?12l[?25h[?12;25h[?25ln[?12l[?25h[?12;25h[?25la[?12l[?25h[?12;25h[?25ll[?12l[?25h[?12;25h[?25l.[?12l[?25h[?12;25h[?25lc[?12l[?25h[?12;25h[?25lx[?12l[?25h[?12;25h[?25lx[?12l[?25h[?12;25h[K[H[?25l[7mFile Edit Options Buffers Tools C++ Help                                        [0m[39;49m[27m
+[A
+[1m[34m#include[0m[39;49m [32m"svg.hxx"[39;49m[K
+[1m[34m#include[0m[39;49m [32m"terminal.hxx"[39;49m[K
+[1m[34m#include[0m[39;49m [32m<fstream>[39;49m[K
+[1m[34m#include[0m[39;49m [32m<iomanip>[39;49m[K
+[1m[34m#include[0m[39;49m [32m<memory>[39;49m[K
+[1m[34m#include[0m[39;49m [32m<stdexcept>[39;49m[K
+[1m[34m#include[0m[39;49m [32m<sstream>[39;49m[K
+[K
+[1m[36musing[0m[39;49m [35mLog[39;49m::[32mERROR[39;49m;[K
+[1m[36musing[0m[39;49m [35mLog[39;49m::[32mWARNING[39;49m;[K
+[1m[36musing[0m[39;49m [35mLog[39;49m::[32mNOTICE[39;49m;[K
+[1m[36musing[0m[39;49m [35mLog[39;49m::[32mINFO[39;49m;[K
+[1m[36musing[0m[39;49m [35mLog[39;49m::[32mDEBUG[39;49m;[K
+[K
+[1m[36mnamespace[0m[39;49m [35mpo[39;49m = [35mboost[39;49m::program_options;[K
+[1m[36musing[0m[39;49m [35mstd[39;49m::[32mstring[39;49m;[K
+[K
+[1m[36mnamespace[0m[39;49m [35mTSM[39;49m {[K
+[K
+[31m// Imported from "tsm_vte.c"                                                    [39;49m
+[A
+[1m[36menum[0m[39;49m [32mvte_color[39;49m {[K
+[7m-=--:----F1  [0m[39;49m[27m[7m[1mterminal.cxx[0m[39;49m[27m[7m   Top L1     (C++/l Abbrev) --------------------------[0m[39;49m[27m
+[A[2d[?12l[?25h[?12;25h[24d[?25l[34mI-search: [39;49m[H
+[?12l[?25h[?12;25h[23;53H[?25l[7m Isearch) [0m[39;49m[27m[H
+[?12l[?25h[?12;25h[24;11H[?25lt[?12l[?25h[?12;25h[H
+[3;11H[?25l[36m[45mt[39;49m[23;34H[7m2[0m[39;49m[27m[3;12H[?12l[?25h[?12;25h
+[C[?25l[32m[46mt[39;49m
+
+
+[32m[46mt[39;49m[32mdexcep[39;49m[32m[46mt[39;49m[8;13H[32m[46mt[39;49m
+
+
+
+[32m[46mT[39;49m[16;20H[35m[46mt[39;49m::program_op[46mt[39;49m
+	[35m[46mt[39;49m[35md[39;49m::[32ms[39;49m[32m[46mt[39;49m
+
+[35m[46mT[39;49m
+
+	[31m[46mt[39;49m[31med from "[39;49m[31m[46mt[39;49m[31msm_v[39;49m[31m[46mt[39;49m[22;7H[32m[46mt[39;49m[3;12H[?12l[?25h[?12;25h[24d[?25ls[?12l[?25h[?12;25h[3;12H[?25l[32m[46mt[39;49m[19;11H[36m[45mTS[39;49m[23;34H[7m18[0m[39;49m[27m[19;13H[?12l[?25h[?12;25h[3;11H[?25l[32mt[39;49m
+[C[32mt[39;49m
+
+
+[32mtdexcept[39;49m[8;13H[32mt[39;49m
+
+
+
+[32mT[39;49m[16;20H[35mt[39;49m::program_opt
+	[35mtd[39;49m::[32mst[39;49m
+
+
+
+	[31mted from "tsm_vt[39;49m[22;7H[32mt[39;49m[19;13H[?12l[?25h[?12;25h[21;19H[?25l[31m[46mts[39;49m[19;13H[?12l[?25h[?12;25h[24d[?25lm[?12l[?25h[?12;25h[19;13H[?25l[36m[45mM[39;49m[?12l[?25h[?12;25h[21;19H[?25l[31mts[39;49m[19;14H[?12l[?25h[?12;25h[21;19H[?25l[31m[46mtsm[39;49m[19;14H[?12l[?25h[?12;25h[24d[?25l_[?12l[?25h[?12;25h[19;14H[?25l[35m[46mTSM[39;49m[21;19H[36m[45mtsm_[39;49m[23;34H[7m20[0m[39;49m[27m[21;23H[?12l[?25h[?12;25h[19;11H[?25l[35mTSM[39;49m[21;23H[?12l[?25h[?12;25h[24;15H[21;23H[H
+[?25l    out_.reset (&[35mstd[39;49m::cout, [31m/*owner*/[39;49m[35mfalse[39;49m);
+  }[K
+[K
+  [31m// Initialize cell matrix                                                     [39;49m
+  {[K
+    log_.[32mwrite[39;49m<INFO> ([&]([1m[36mauto[0m[39;49m&&[33mout[39;49m){
+        out << [32m"setting terminal size to "[39;49m[9;13H<< [1m[36mthis[0m[39;49m->opt().columns << [32m"x"[39;49m << [1m[36mthis[0m[39;49m->opt().rows << [35mstd[39;49m::endl;
+      });[K
+[K
+    [36m[45mtsm_[39;49mscreen_resize(screen_(), opt().columns, opt().rows);
+[K
+    cell_.resize(opt().rows);[15;5H[1m[36mfor[0m[39;49m ([32muint[39;49m [33mrow[39;49m=0 ; row<opt().rows ; ++row) {
+      cell_[row].resize(opt().columns);
+    }[K
+}
+[K[20;3H[31m// Initialize row vectors                                                     [39;49m
+  rowText_.resize (opt().rows);[K
+  rowBg_.resize (opt().rows);
+[7m49% L249[0m[39;49m[27m[12;9H[?12l[?25h[?12;25h[24;1H[?25lMark saved where search started[12;9H[?12l[?25h[?12;25h[?25ltsm_[23;53H[7m) --------[0m[39;49m[27m[12;9H[?12l[?25h[?12;25h[24;1H[K[12;5H[24;1H[?25lMark set[12;5H[?12l[?25h[?12;25h[24;1H[K[12;5H[?25l[37m[44mtsm[39;49m[?12l[?25h[?12;25h[?25l[37m[44m_screen[39;49m[?12l[?25h[?12;25h[?25l[37m[44m_resize[39;49m[?12l[?25h[?12;25h[24;1H[?25l(No files need saving)[12;22H[?12l[?25h[?12;25h[24;1H[K[?1l>[?12l[?25h[?1049l[39;49m$ 
+$ # Now exit to stop recording
+$ exit
+exit
+Script done, file is scriptfile
+$ 
+$ # and use script2svg to produce an SVG animation
+$ script2svg scriptfile timing -o screencast.svg
+info: setting verbosity level to 3(info)
+info: setting output to file `screencast.svg'
+info: setting terminal size to 80x24
+notice: animation duration: 32.27s.
+$ 
+$ # That's it. Enjoy!
+$ firefox screencast.svg
+$ exit
+
+Script done on Sat Jul 25 22:09:55 2015
